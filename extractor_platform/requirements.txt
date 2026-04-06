@@ -63,3 +63,4 @@ scrapling==0.4.2
 psycopg[binary]
 gunicorn
 whitenoise
+aiohttp-socks
