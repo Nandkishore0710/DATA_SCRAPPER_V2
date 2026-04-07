@@ -1694,7 +1694,7 @@ window.viewJobResults = async (id, keyword, location, isBulk = false) => {
         availableFields = Array.from(fieldSet).sort();
 
         // Initialize selection with priority fields (Name and ANY address variant)
-        const commonFields = ['name', 'full_address', 'address', 'phone', 'rating', 'reviews_count'];
+        const commonFields = ['name', 'full_address', 'address', 'phone', 'rating', 'review_count', 'city', 'street'];
         availableFields.forEach(f => {
             if (commonFields.includes(f)) selectedFields.add(f);
         });
@@ -1702,7 +1702,7 @@ window.viewJobResults = async (id, keyword, location, isBulk = false) => {
         // Remove website/rating from default if user feels it's unnecessary (as per feedback)
         // We'll keep Rating but remove Website as it's the "last section" usually
         selectedFields.delete('website');
-        selectedFields.delete('reviews_count');
+        // reviews visibility restored
 
         renderTable();
         renderFieldList();
@@ -1718,7 +1718,7 @@ let currentResultTab = 'overview';
 const fieldLabels = {
     'name': { title: 'Place name', sub: 'title' },
     'rating': { title: 'Total Score', sub: 'totalScore' },
-    'reviews_count': { title: 'Reviews Count', sub: 'reviewsCount' },
+    'review_count': { title: 'Review Count', sub: 'reviewsCount' },
     'full_address': { title: 'Address', sub: 'fullAddress' },
     'street': { title: 'Street', sub: 'street' },
     'city': { title: 'City', sub: 'city' },

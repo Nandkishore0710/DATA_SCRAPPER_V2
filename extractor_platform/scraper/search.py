@@ -235,9 +235,14 @@ async def extract_from_cards(page, cell) -> list:
             address = ""
             phone = ""
             for line in clean[1:]:
+                # Sanitizer: Remove hours/status noise from address
+                sanitized = re.split(r'\s·\s|Open|Closed|Permanently|Temporary|Opens|Closes', line)[0].strip()
+                
                 # Looser phone regex to catch (xxx) xxx-xxxx and international
-                if re.search(r'[\+\(\d][\d\s\-\.\(\)\+]{7,}', line): phone = line
-                elif not address and len(line) > 5: address = line
+                if re.search(r'[\+\(\d][\d\s\-\.\(\)\+]{7,}', line):
+                    phone = line
+                elif not address and len(sanitized) > 5:
+                    address = sanitized
 
             # 4. Lat/Lng and ID from URL
             lat, lng = cell.center_lat, cell.center_lng
