@@ -217,6 +217,12 @@ async def extract_from_cards(page, cell) -> list:
 
     for i, card in enumerate(cards):
         try:
+            # 🕵️‍♂️ AD BLOCKADE: Check if this is a 'Sponsored' or 'Ad' result
+            card_text = (await card.text_content() or "").lower()
+            if any(ad_marker in card_text for ad_marker in ['ad ', 'sponsored', 'advertisement']):
+                log.info("scraper.ad_skipped", index=i)
+                continue
+
             # 1. Activate Detail Panel by clicking the card (FORCE it to bypass overlays)
             try:
                 await card.click(force=True, timeout=5000)

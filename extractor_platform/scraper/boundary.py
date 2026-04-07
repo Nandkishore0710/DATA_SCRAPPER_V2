@@ -30,9 +30,9 @@ def get_city_boundary(location: str) -> dict:
     url = "https://nominatim.openstreetmap.org/search"
     headers = {'User-Agent': 'ExtractorPlatform/1.0'}
     
-    variants = [location, f"{location} district", f"{location} city"]
+    variants = [f"{location} city centre", location, f"{location} city", f"{location} district"]
     best_result = None
-    max_area = -1
+    min_area = float('inf')
 
     for q in variants:
         try:
@@ -41,20 +41,30 @@ def get_city_boundary(location: str) -> dict:
             data = response.json()
             
             if data:
-                bbox = data[0]['boundingbox']
+                res = data[0]
+                bbox = res['boundingbox']
+                display_name = res.get('display_name', '').lower()
+                
                 # Rough area calculation
                 area = (float(bbox[1]) - float(bbox[0])) * (float(bbox[3]) - float(bbox[2]))
-                if area > max_area:
-                    max_area = area
+                if area == 0: area = 0.0001
+                
+                # HEURISTIC: Prioritize exact 'city' or 'town' matches first
+                is_city_match = any(x in display_name for x in ['city', 'town', 'municipality', 'centre'])
+                
+                if not best_result or (is_city_match and area < min_area) or (not is_city_match and area < min_area):
+                    min_area = area
                     best_result = {
                         'min_lat': float(bbox[0]),
                         'max_lat': float(bbox[1]),
                         'min_lng': float(bbox[2]),
                         'max_lng': float(bbox[3]),
-                        'display_name': data[0]['display_name'],
+                        'display_name': res['display_name'],
                         'area': area
                     }
-        except Exception as e:
+                    # If we found a high-quality city match, we can stop early
+                    if is_city_match: break 
+        except Exception:
             continue
 
     if not best_result:

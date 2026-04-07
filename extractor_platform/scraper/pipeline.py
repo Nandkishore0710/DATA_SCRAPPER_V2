@@ -62,6 +62,17 @@ async def run_keyword_pipeline(keyword_job_id: int):
             for p in places:
                 pid = p.get('place_id')
                 if not pid or pid in seen: continue
+                
+                # 🛡️ STRICT ADDRESS VERIFICATION: Block Noida/Other Intrusions
+                addr = (p.get('address') or "").lower()
+                city_val = (p.get('city') or "").lower()
+                target = location.lower()
+                
+                # Check for target city in lead data
+                if target not in addr and target not in city_val:
+                    log.info("pipeline.out_of_town_discarded", name=p.get('title'), address=p.get('address'))
+                    continue
+
                 seen.add(pid)
                 new_objs.append(Place(keyword_job_id=keyword_job_id, **p))
             
