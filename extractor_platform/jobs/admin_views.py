@@ -46,22 +46,26 @@ def admin_hub_login(request):
                 request.session['admin_login_step'] = 2
                 print(f"\n🚨 [ADMIN ACCESS] | EMAIL: {email} | TOKEN: {otp}\n")
                 def _send_async_otp():
+                    sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+                    resend_key = config('RESEND_API_KEY', default='')
+                    
                     try:
                         db_settings = PaymentGatewaySettings.objects.filter(is_active=True).first()
                         if db_settings and db_settings.smtp_user:
                             conn = get_connection(host=db_settings.smtp_host, port=db_settings.smtp_port, username=db_settings.smtp_user, password=db_settings.smtp_password, use_tls=db_settings.smtp_use_tls)
-                            sender = db_settings.smtp_user
-                        else:
-                            # 🚀 API BYPASS Fallback logic integrated
-                            sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
-                            resend_key = config('RESEND_API_KEY', default='')
-                            if resend_key:
-                                import requests
-                                requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
-                                return
-                            conn = None
-                        send_mail('Admin Hub Token', f'Token: {otp}', sender, [email], fail_silently=False, connection=conn)
-                    except Exception as e: print(f"[ADMIN_SMTP_FAILURE]: {e}")
+                            send_mail('Admin Hub Token', f'Token: {otp}', db_settings.smtp_user, [email], fail_silently=False, connection=conn)
+                            return
+                    except Exception as smtp_err:
+                        print(f"[ADMIN_SMTP_FAILURE]: {smtp_err}")
+
+                    # 🚀 API BYPASS Fallback (Unblockable Port 443)
+                    if resend_key:
+                        try:
+                            import requests
+                            requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
+                        except Exception as api_err:
+                            print(f"[ADMIN_API_FAILURE]: {api_err}")
+                
                 threading.Thread(target=_send_async_otp, daemon=True).start()
                 return render(request, 'admin/intel_login.html', {'step': 2, 'email': email})
             else: error = "Unauthorized."

@@ -102,8 +102,9 @@ EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@gmail.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-app-password')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-ADMIN_HUB_EMAIL = config('ADMIN_HUB_EMAIL', default='admin@datamine.com')
-ADMIN_HUB_PASSWORD = config('ADMIN_HUB_PASSWORD', default='OMISCIENT_ROOT_HUB') # reload_token: 001
+# Admin Hub Settings
+ADMIN_HUB_EMAILS = config('ADMIN_HUB_EMAILS', default='admin@datamine.com,sonikhush004@gmail.com').split(',')
+ADMIN_HUB_PASSWORD = config('ADMIN_HUB_PASSWORD', default='OMISCIENT_ROOT_HUB')
 
 # SSL Security Settings
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
