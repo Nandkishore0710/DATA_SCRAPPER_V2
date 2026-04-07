@@ -259,11 +259,27 @@ def delete_user(request, user_id):
 @admin_hub_required
 def package_management(request):
     if request.method == 'POST':
+        action = request.POST.get('action')
         pid = request.POST.get('pkg_id')
+        
+        if action == 'delete' and pid:
+            pkg = get_object_or_404(Package, id=pid)
+            pkg.delete()
+            return redirect('package_management')
+            
         pkg = get_object_or_404(Package, id=pid) if pid else Package()
-        pkg.name, pkg.price = request.POST.get('name'), request.POST.get('price')
-        pkg.lead_limit, pkg.search_limit = request.POST.get('lead_limit'), request.POST.get('search_limit')
-        pkg.save(); return redirect('package_management')
+        pkg.name = request.POST.get('name')
+        pkg.tier_badge = request.POST.get('tier_badge')
+        pkg.price = request.POST.get('price')
+        pkg.lead_limit = request.POST.get('lead_limit', 0)
+        pkg.search_limit = request.POST.get('search_limit', 0)
+        pkg.grid_cell_limit = request.POST.get('grid_cell_limit', 144)
+        pkg.grid_strategies = request.POST.get('grid_strategies', 'fast')
+        pkg.allowed_search_types = request.POST.get('allowed_search_types', 'city')
+        pkg.features = request.POST.get('features', '')
+        pkg.is_featured = 'is_featured' in request.POST
+        pkg.save()
+        return redirect('package_management')
     return render(request, 'admin/package_management.html', {'packages': Package.objects.all()})
 
 @staff_member_required
