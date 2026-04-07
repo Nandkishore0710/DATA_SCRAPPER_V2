@@ -43,7 +43,7 @@ class GoogleDetailsExtractor:
             address = await self._find_text(page, [
                 'button[data-item-id*="address"]', '[aria-label*="Address"]', '.Io6YTe.fontBodyMedium'
             ])
-            
+
             # 4. PHONE Extraction
             phone = await self._find_text(page, [
                 'button[data-item-id*="phone"]', '[aria-label*="Phone"]', '.fontBodyMedium[aria-label*="Phone"]'
@@ -57,7 +57,9 @@ class GoogleDetailsExtractor:
             rating = ""
             try: 
                 rating_el = page.locator('span.ceNzR[aria-label*="stars"]').first
-                rating = await rating_el.get_attribute('aria-label') if await rating_el.count() > 0 else ""
+                if await rating_el.count() > 0:
+                    raw = await rating_el.get_attribute('aria-label')
+                    rating = re.sub(r'[^\d\.]', '', raw.split(' ')[0]) if raw else ""
             except: pass
 
             review_count = ""
@@ -68,11 +70,19 @@ class GoogleDetailsExtractor:
                     review_count = re.sub(r'[^\d]', '', review_text)
             except: pass
 
+            # Smart Address Parsing
+            city = ""
+            if address and ',' in address:
+                parts = [p.strip() for p in address.split(',')]
+                if len(parts) >= 2:
+                    city = parts[-2] if len(parts) < 4 else parts[-3]
+
             return {
                 'place_id': page.url.split('place/')[1].split('/')[0] if 'place/' in page.url else name,
                 'name': name,
                 'category': category,
                 'street': address,
+                'city': city,
                 'phone': phone,
                 'website': website,
                 'rating': rating,
@@ -205,9 +215,17 @@ async def extract_from_cards(page, cell) -> list:
 
             # 2. Rating & Reviews
             rating = ""
+            review_count = ""
             rating_el = card.locator('span.MW4etd, [aria-label*="stars"]').first
             if await rating_el.count() > 0:
-                rating = re.sub(r'[^\d\.]', '', (await rating_el.text_content() or ""))
+                rating_text = await rating_el.text_content() or ""
+                rating = re.sub(r'[^\d\.]', '', rating_text)
+                # Try to catch review count from the parent element if nearby
+                try:
+                    rev_el = card.locator('span.UY7F9').first
+                    if await rev_el.count() > 0:
+                        review_count = re.sub(r'[^\d]', '', await rev_el.text_content())
+                except: pass
 
             # 3. Details (Category/Address/Phone)
             lines = await card.locator('div.W4Efsd').all_text_contents()
@@ -217,7 +235,8 @@ async def extract_from_cards(page, cell) -> list:
             address = ""
             phone = ""
             for line in clean[1:]:
-                if re.search(r'[\+\d][\d\s\-]{7,}', line): phone = line
+                # Looser phone regex to catch (xxx) xxx-xxxx and international
+                if re.search(r'[\+\(\d][\d\s\-\.\(\)\+]{7,}', line): phone = line
                 elif not address and len(line) > 5: address = line
 
             # 4. Lat/Lng and ID from URL
@@ -234,13 +253,22 @@ async def extract_from_cards(page, cell) -> list:
                 if coord_match:
                     lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
 
+            # Smart Address Parsing for Card
+            city = ""
+            if address and ',' in address:
+                parts = [p.strip() for p in address.split(',')]
+                if len(parts) >= 2:
+                    city = parts[-2] if len(parts) < 4 else parts[-3]
+
             places.append({
                 'place_id': place_id,
                 'name': name,
                 'category': category,
                 'street': address,
+                'city': city,
                 'phone': phone,
                 'rating': rating,
+                'review_count': review_count,
                 'maps_url': maps_url,
                 'latitude': lat,
                 'longitude': lng,

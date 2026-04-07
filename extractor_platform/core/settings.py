@@ -5,9 +5,12 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,scraper.7shouters.com').split(',')
-ALLOWED_HOSTS.append('scraper.7shouters.com')
-ALLOWED_HOSTS.append('168.144.78.131')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,scraper.7shouters.com,168.144.78.131').split(',')
+
+# Identity & Redirection Fixes
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+CSRF_TRUSTED_ORIGINS = ['https://scraper.7shouters.com', 'http://168.144.78.131:8000']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
