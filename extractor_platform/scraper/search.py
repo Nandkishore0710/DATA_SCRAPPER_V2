@@ -159,12 +159,25 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
                 btn = page.locator(s).first
                 if await btn.count() > 0:
                     await btn.click()
-                    await asyncio.sleep(0.5) # Wait for overlay to clear
+                    # WAIT LONGER for the overlay to fully clear (Crucial for Cloud VPS)
+                    await asyncio.sleep(1.5) 
                     break
         except: pass
 
+        # 🕵️‍♂️ CHECK FOR "NO RESULTS" TEXT (Avoid false blockage alarms)
+        no_res_txt = await page.content()
+        if "couldn't find" in no_res_txt.lower() or "no results" in no_res_txt.lower():
+            log.info("scraper.zero_results", query=query, cell=cell.id)
+            return []
+
         # Check for list or single result (Robust Multi-Selector Feed Detection)
-        feed_selectors = ['div[role="feed"]', 'div[aria-label*="Results for"]', '.m67q60667232']
+        feed_selectors = [
+            'div[role="feed"]', 
+            'div[aria-label*="Results for"]', 
+            '.m67q60667232', 
+            '.m67q60B67232', 
+            'a.hfpxzc' # If the lead cards are visible, the feed is loaded
+        ]
         feed_found = False
         for fs in feed_selectors:
             try:
@@ -204,8 +217,14 @@ async def extract_from_cards(page, cell) -> list:
 
     for i, card in enumerate(cards):
         try:
-            # 1. Activate Detail Panel by clicking the card
-            await card.click()
+            # 1. Activate Detail Panel by clicking the card (FORCE it to bypass overlays)
+            try:
+                await card.click(force=True, timeout=5000)
+            except Exception as e:
+                log.debug("scraper.click_retry", index=i, error=str(e))
+                # Fallback to JS click if Playwright's force-click still struggles
+                await page.evaluate("(el) => el.click()", await card.element_handle())
+            
             # Give short time for profile to start loading
             await asyncio.sleep(1.2) 
             
