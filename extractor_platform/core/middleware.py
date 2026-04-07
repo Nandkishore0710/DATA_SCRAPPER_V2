@@ -11,12 +11,14 @@ class SecurityHeadersMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
-        # 🛡️ THE MODERN SHIELD: Satisfies Clickjacker.io 'frame-ancestors' check
-        # This tells the browser NO ONE is allowed to embed this site in an iframe.
-        response['Content-Security-Policy'] = "frame-ancestors 'none';"
-        
-        # Performance/Security Extras
-        response['X-Content-Type-Options'] = "nosniff"
-        response['Referrer-Policy'] = "same-origin"
-        
+        # Mission Shield: Satisfies Clickjacker.io 'frame-ancestors' check
+        # This prevents the site from being embedded in an iframe.
+        try:
+            if response is not None:
+                response['Content-Security-Policy'] = "frame-ancestors 'none';"
+                response['X-Content-Type-Options'] = "nosniff"
+                response['Referrer-Policy'] = "same-origin"
+        except:
+            pass
+            
         return response
