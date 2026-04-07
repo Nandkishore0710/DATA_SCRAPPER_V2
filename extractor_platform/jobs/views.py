@@ -309,6 +309,7 @@ class BulkJobCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, bulk_job_id):
+        from django.utils import timezone
         try:
             bulk_job = BulkJob.objects.prefetch_related('keyword_jobs').get(id=bulk_job_id, user=request.user)
             if bulk_job.status not in ['pending', 'running']:
@@ -316,10 +317,11 @@ class BulkJobCancelView(APIView):
             
             bulk_job.status = 'cancelled'
             bulk_job.status_message = 'Termination requested by user.'
+            bulk_job.completed_at = timezone.now()
             bulk_job.save()
             
             # Cascading cancel to keywords
-            bulk_job.keyword_jobs.all().update(status='cancelled', status_message='Protocol Terminated.')
+            bulk_job.keyword_jobs.all().update(status='cancelled', status_message='Protocol Terminated.', completed_at=timezone.now())
             
             return Response({'status': 'cancelled'}, status=200)
         except BulkJob.DoesNotExist:

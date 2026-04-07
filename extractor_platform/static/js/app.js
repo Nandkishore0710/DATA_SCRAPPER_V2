@@ -234,11 +234,11 @@ function startLiveTimer(elementId, startIso, doneCells = 0, totalCells = 0) {
 // Get a static duration string from a job object
 function jobDurationText(job) {
     if (!job.created_at) return '';
-    if (job.status === 'completed' || job.status === 'failed') {
+    if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
         const start = new Date(job.created_at);
         const end = job.completed_at ? new Date(job.completed_at) : new Date();
         const secs = Math.floor((end - start) / 1000);
-        return '✅ ' + formatDuration(secs);
+        return (job.status === 'cancelled' ? '🛑 ' : '✅ ') + formatDuration(secs);
     }
     return null; // means "live timer needed"
 }
@@ -1380,7 +1380,7 @@ async function renderJobs(allJobs) {
                     `;
                 }
 
-                if (job.status === 'completed' && job.keywords && job.keywords.length > 0) {
+                if ((job.status === 'completed' || job.status === 'cancelled') && job.keywords && job.keywords.length > 0 && count > 0) {
                     const isBulk = job.keywords.length > 1;
                     const safeLoc = (job.location || "").replace(/'/g, "\\'");
                     
@@ -1512,7 +1512,7 @@ async function renderJobs(allJobs) {
                 const count = job.total_extracted || 0;
 
                 let actionBtn = '';
-                if (job.status === 'completed' && job.keywords && job.keywords.length > 0 && typeof job.keywords[0] === 'object') {
+                if ((job.status === 'completed' || job.status === 'cancelled') && job.keywords && job.keywords.length > 0 && typeof job.keywords[0] === 'object' && count > 0) {
                     const isBulk = job.keywords.length > 1;
                     const safeLoc = (job.location || "").replace(/'/g, "\\'");
                     
