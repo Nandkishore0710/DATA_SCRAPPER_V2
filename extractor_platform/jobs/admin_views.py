@@ -227,9 +227,12 @@ def assign_package(request, user_id):
     u = get_object_or_404(User, id=user_id)
     pkg_id = json.loads(request.body).get('package_id')
     p, _ = UserProfile.objects.get_or_create(user=u)
-    p.package = get_object_or_404(Package, id=pkg_id) if pkg_id else None
+    package = get_object_or_404(Package, id=pkg_id) if pkg_id else None
+    p.package = package
+    if package:
+        p.searches_left = package.search_limit
     p.save()
-    return JsonResponse({'success': True, 'msg': 'Package assigned successfully.'})
+    return JsonResponse({'success': True, 'msg': f'Package applied. Credits set to {p.searches_left}.'})
 
 @staff_member_required
 @admin_hub_required
@@ -237,8 +240,10 @@ def assign_package(request, user_id):
 def remove_subscription(request, user_id):
     u = get_object_or_404(User, id=user_id)
     p, _ = UserProfile.objects.get_or_create(user=u)
-    p.package = None; p.save()
-    return JsonResponse({'success': True})
+    p.package = None
+    p.searches_left = 5
+    p.save()
+    return JsonResponse({'success': True, 'msg': 'Subscription removed. Credits reset to 5.'})
 
 @staff_member_required
 @admin_hub_required
