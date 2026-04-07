@@ -63,7 +63,11 @@ def admin_hub_login(request):
                     if resend_key:
                         try:
                             import requests
-                            requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
+                            resp = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
+                            if resp.status_code not in [200, 201, 202]:
+                                print(f"[ADMIN_API_DEBUG]: Status {resp.status_code} | Body: {resp.text}")
+                            else:
+                                print(f"🚀 [BYPASS_SUCCESS]: Email sent to {email}")
                         except Exception as api_err:
                             print(f"[ADMIN_API_FAILURE]: {api_err}")
                 
