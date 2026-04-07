@@ -16,6 +16,8 @@ def run_keyword_job(keyword_job_id: int):
     from scraper.pipeline import run_keyword_pipeline
 
     import traceback
+    import os
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"  # Allow DB access from async thread
     log.info("thread.executing", id=keyword_job_id)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
