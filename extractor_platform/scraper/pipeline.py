@@ -18,7 +18,7 @@ log = structlog.get_logger()
 JOB_TIMEOUT_SECONDS = 7200 
 # Global config
 JOB_TIMEOUT_SECONDS = 7200 
-CONCURRENCY = 2  # Lowered to 2 for better stealth and to prevent IP flagging
+CONCURRENCY = 4  # Increased to 4 for maximum speed on optimized hardware
 
 async def run_keyword_pipeline(keyword_job_id: int):
     """
