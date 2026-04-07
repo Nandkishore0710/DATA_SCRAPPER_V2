@@ -1364,8 +1364,8 @@ async function renderJobs(allJobs) {
                     progressHtml = `
                         <div style="margin-top:12px; padding-top: 10px; border-top: 1px solid var(--border-light);">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                                <span style="font-size:0.7rem; font-weight:800; color:${job.status === 'completed' ? 'var(--success)' : 'var(--accent)'}; text-transform:uppercase; letter-spacing:0.02em;">
-                                    ${job.status === 'completed' ? 'Extraction Complete' : 'In Progress'}
+                                <span style="font-size:0.7rem; font-weight:800; color:${job.status === 'completed' ? 'var(--success)' : (job.status === 'cancelled' ? 'var(--text-muted)' : (job.status === 'failed' ? 'var(--danger)' : 'var(--accent)'))}; text-transform:uppercase; letter-spacing:0.02em;">
+                                    ${job.status === 'completed' ? 'Extraction Complete' : (job.status === 'cancelled' ? 'Protocol Terminated' : (job.status === 'failed' ? 'Search Failed' : 'In Progress'))}
                                 </span>
                                 <span style="font-size:0.75rem; color:var(--text-main); font-weight:800; font-family:'Outfit';">${pct}%</span>
                             </div>
@@ -1538,10 +1538,13 @@ async function renderJobs(allJobs) {
                     if (totalCellsSum > 0) {
                         const pct_val = Math.min(Math.round((totalDone / totalCellsSum) * 100), 100);
 
+                        const p_status = job.status === 'cancelled' ? 'Aborted' : (job.status === 'failed' ? 'Failed' : 'Active');
+                        const p_color = job.status === 'cancelled' ? 'var(--text-muted)' : (job.status === 'failed' ? 'var(--danger)' : 'var(--accent)');
+                        
                         actionBtn = `
                             <div style="min-width: 100px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 3px;">
-                                    <span style="font-size:0.65rem; font-weight:800; color:var(--accent);">${pct_val}%</span>
+                                    <span style="font-size:0.65rem; font-weight:800; color:${p_color};">${p_status} ${pct_val}%</span>
                                     <span style="font-size:0.55rem; color:var(--text-light); font-weight:700;">${totalDone}/${totalCellsSum}</span>
                                 </div>
                                 <div style="width:100%; height:4px; background:var(--bg-color); border-radius:10px; overflow:hidden; border: 1px solid var(--border-light);">
