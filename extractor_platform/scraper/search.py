@@ -251,9 +251,15 @@ async def extract_from_cards(page, cell) -> list:
             rating = ""
             review_count = ""
             try:
-                rating_el = page.locator('div.F7B7Vb span.MW4etd, span.ceA7Yc').first
+                # Optimized Rating Selector (Checks aria-labels and text)
+                rating_el = page.locator('span.MW4etd, span.ceA7Yc, [aria-label*="stars"]').first
                 if await rating_el.count() > 0:
-                    rating = re.sub(r'[^\d\.]', '', await rating_el.text_content() or "")
+                    raw_rating = await rating_el.get_attribute('aria-label') or await rating_el.text_content() or ""
+                    # Extract decimal number (e.g., "4.5" from "4.5 stars")
+                    import re # Ensue re is available
+                    match = re.search(r'(\d[\d\.]*)', raw_rating)
+                    if match:
+                        rating = match.group(1)
                 
                 rev_el = page.locator('span.UY7F9 button, span.UY7F9').first
                 if await rev_el.count() > 0:
@@ -295,7 +301,7 @@ async def extract_from_cards(page, cell) -> list:
                 'street': address,
                 'city': city,
                 'phone': phone,
-                'rating': rating,
+                'rating': rating, # Correctly match the 'Place' model
                 'review_count': review_count,
                 'website': website,
                 'maps_url': page.url,

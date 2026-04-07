@@ -423,6 +423,9 @@ class BulkJobResultsView(APIView):
             # Add keyword info to each result so user knows which keyword it came from
             for p in places:
                 p['source_keyword'] = kj.keyword
+                # Fix Frontend Dashboard Aliases
+                p['totalscore'] = p.get('rating') or ""
+                p['reviewscount'] = p.get('review_count') or ""
                 all_places.append(p)
 
         return Response({
