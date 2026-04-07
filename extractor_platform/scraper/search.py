@@ -200,85 +200,91 @@ async def extract_from_cards(page, cell) -> list:
     """Extract list of businesses from result cards using layout-agnostic selectors."""
     places = []
     # Identify result cards (links with specific class 'hfpxzc' or generic article role)
-    cards = await page.locator('a.hfpxzc, div[role="article"], div.m67q60').all()
+    cards = await page.locator('a.hfpxzc, [role="article"]').all()
 
-    for card in cards:
+    for i, card in enumerate(cards):
         try:
+            # 1. Activate Detail Panel by clicking the card
+            await card.click()
+            # Give short time for profile to start loading
+            await asyncio.sleep(1.2) 
+            
             # 1. Name
             name = ""
-            for s in ['div.qBF1Pd', 'span.fontHeadlineSmall', '[role="heading"]']:
-                el = card.locator(s).first
-                if await el.count() > 0:
-                    name = (await el.text_content() or "").strip()
-                    if name: break
+            name_el = page.locator('h1.DUwDvf').first
+            if await name_el.count() > 0:
+                name = (await name_el.text_content() or "").strip()
+            
+            if not name:
+                # Fallback to card name if panel h1 isn't ready
+                name_el = card.locator('div.qBF1Pd, [role="heading"]').first
+                name = (await name_el.text_content() or "").strip()
+                
             if not name: continue
 
-            # 2. Rating & Reviews
+            # 2. Rating & Review Count
             rating = ""
             review_count = ""
-            rating_el = card.locator('span.MW4etd, [aria-label*="stars"]').first
-            if await rating_el.count() > 0:
-                rating_text = await rating_el.text_content() or ""
-                rating = re.sub(r'[^\d\.]', '', rating_text)
-                # Try to catch review count from the parent element if nearby
-                try:
-                    rev_el = card.locator('span.UY7F9').first
-                    if await rev_el.count() > 0:
-                        review_count = re.sub(r'[^\d]', '', await rev_el.text_content())
-                except: pass
+            try:
+                rating_el = page.locator('div.F7B7Vb span.MW4etd, span.ceA7Yc').first
+                if await rating_el.count() > 0:
+                    rating = re.sub(r'[^\d\.]', '', await rating_el.text_content() or "")
+                
+                rev_el = page.locator('span.UY7F9 button, span.UY7F9').first
+                if await rev_el.count() > 0:
+                    review_count = re.sub(r'[^\d]', '', await rev_el.text_content() or "")
+            except: pass
 
-            # 3. Details (Category/Address/Phone)
-            lines = await card.locator('div.W4Efsd').all_text_contents()
-            clean = [l.strip() for l in lines if l.strip()]
-            
-            category = clean[0] if clean else ""
+            # 3. Precise Profile Extraction (Phone/Address/City)
             address = ""
             phone = ""
-            for line in clean[1:]:
-                # Sanitizer: Remove hours/status noise from address
-                sanitized = re.split(r'\s·\s|Open|Closed|Permanently|Temporary|Opens|Closes', line)[0].strip()
-                
-                # Looser phone regex to catch (xxx) xxx-xxxx and international
-                if re.search(r'[\+\(\d][\d\s\-\.\(\)\+]{7,}', line):
-                    phone = line
-                elif not address and len(sanitized) > 5:
-                    address = sanitized
-
-            # 4. Lat/Lng and ID from URL
-            lat, lng = cell.center_lat, cell.center_lng
-            place_id = name
-            maps_url = ""
-            link_el = card.locator('a[href*="/maps/place/"]').first
-            if await link_el.count() > 0:
-                href = await link_el.get_attribute('href')
-                maps_url = href
-                id_match = re.search(r'place/([^/]+)/', href)
-                if id_match: place_id = id_match.group(1)
-                coord_match = re.search(r'!3d([-\d\.]+)!4d([-\d\.]+)', href)
-                if coord_match:
-                    lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
-
-            # Smart Address Parsing for Card
+            website = ""
             city = ""
-            if address and ',' in address:
-                parts = [p.strip() for p in address.split(',')]
-                if len(parts) >= 2:
-                    city = parts[-2] if len(parts) < 4 else parts[-3]
+            
+            # Address & City
+            addr_btn = page.locator('button[aria-label^="Address:"]').first
+            if await addr_btn.count() > 0:
+                address = (await addr_btn.get_attribute('aria-label') or "").replace("Address: ", "").strip()
+                if ',' in address:
+                    parts = [p.strip() for p in address.split(',')]
+                    # Logic: last part is pincode/state, 2nd to last is usually city
+                    if len(parts) >= 2:
+                        city = parts[-2] if len(parts) < 4 else parts[-3]
+            
+            # Phone
+            phone_btn = page.locator('button[aria-label^="Phone:"]').first
+            if await phone_btn.count() > 0:
+                phone = (await phone_btn.get_attribute('aria-label') or "").replace("Phone: ", "").strip()
+            
+            # Website
+            web_btn = page.locator('a[data-item-id="authority"]').first
+            if await web_btn.count() > 0:
+                website = await web_btn.get_attribute('href') or ""
 
+            # 4. Final Place Object
+            lat, lng = cell.center_lat, cell.center_lng
             places.append({
-                'place_id': place_id,
+                'place_id': name,
                 'name': name,
-                'category': category,
+                'category': "Business",
                 'street': address,
                 'city': city,
                 'phone': phone,
                 'rating': rating,
                 'review_count': review_count,
-                'maps_url': maps_url,
+                'website': website,
+                'maps_url': page.url,
                 'latitude': lat,
-                'longitude': lng,
+                'longitude': lng
             })
-        except: continue
+
+            # Check for early termination limit (safety)
+            if len(places) >= 150: break
+
+        except Exception as e:
+            log.info("scraper.card_error", error=str(e))
+            continue
+
     return places
 
 # Helper imports for scrapling-based fallback if needed
