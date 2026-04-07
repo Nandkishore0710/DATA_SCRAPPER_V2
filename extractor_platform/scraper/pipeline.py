@@ -103,47 +103,50 @@ async def run_keyword_pipeline(keyword_job_id: int):
 
         async def _process_cell_logic(i, cell, browser=None):
             nonlocal saved_count, processed_cells
-            async with semaphore:
-                # 🛑 CANCELLATION CHECK: stop if user clicked cancel
-                curr_job = await KeywordJob.objects.filter(id=keyword_job_id).only('status').aget()
-                if curr_job.status == 'cancelled':
-                    log.info("pipeline.cancelled_by_user", id=keyword_job_id)
-                    return
-
-                cached = await get_cached_results(kj.keyword, location, cell.index)
-                if cached is not None:
-                    await _save_extracted_places(cached)
-                else:
-                    if use_playwright:
-                        log.info("playwright.fetch_start", cell=cell.index)
-                        places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
-                    else:
-                        log.info("scrapling.fetch_start", cell=cell.index)
-                        places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
-                    
-                    if places:
-                        await _save_extracted_places(places)
-                        await set_cached_results(kj.keyword, location, cell.index, places)
-
+            # 🛑 PRE-EMPTIVE INCREMENT (Ensures progress bar moves)
             processed_cells += 1
-            kj.total_extracted = saved_count
-            kj.cells_done = processed_cells
-            kj.status_message = f'Extraction: {saved_count} found ({processed_cells}/{len(cells)} cells)'
-            if processed_cells % 5 == 0 or processed_cells == len(cells):
-                try: await kj.asave()
-                except: return # Job deleted
-            await asyncio.sleep(random.uniform(0.5, 1.5))
+            if processed_cells % 2 == 0:
+                kj.cells_done = processed_cells
+                await kj.asave()
+
+            try:
+                async with semaphore:
+                    # 🛑 CANCELLATION CHECK
+                    curr_job = await KeywordJob.objects.filter(id=keyword_job_id).only('status').aget()
+                    if curr_job.status == 'cancelled':
+                        return
+
+                    cached = await get_cached_results(kj.keyword, location, cell.index)
+                    if cached is not None:
+                        await _save_extracted_places(cached)
+                    else:
+                        if use_playwright:
+                            places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
+                        else:
+                            places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
+                        
+                        if places:
+                            await _save_extracted_places(places)
+                            await set_cached_results(kj.keyword, location, cell.index, places)
+            except Exception as e:
+                log.warning("pipeline.cell_failed", index=cell.index, error=str(e))
+            finally:
+                # Ensure status message is always updated
+                kj.total_extracted = saved_count
+                kj.status_message = f'Extraction: {saved_count} found ({processed_cells}/{len(cells)} cells)'
+                if processed_cells == len(cells):
+                    await kj.asave()
 
         if use_playwright:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 tasks = [ _process_cell_logic(i, cell, browser=browser) for i, cell in enumerate(cells) ]
-                await asyncio.gather(*tasks)
+                # 🛑 RETURN_EXCEPTIONS=True: Key for resiliency
+                await asyncio.gather(*tasks, return_exceptions=True)
                 await browser.close()
         else:
-            # NO BROWSER OVERHEAD for State/Country searches
             tasks = [ _process_cell_logic(i, cell) for i, cell in enumerate(cells) ]
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         # Finalize (Only if not cancelled)
         await kj.arefresh_from_db()
