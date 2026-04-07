@@ -20,6 +20,7 @@ from django.core.mail import send_mail, get_connection
 from functools import wraps
 from django.conf import settings
 from django.core.cache import cache
+from decouple import config
 
 # --- 1. Security Infrastructure ---
 
