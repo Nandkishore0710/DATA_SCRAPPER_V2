@@ -100,3 +100,12 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-app-password')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 ADMIN_HUB_EMAIL = config('ADMIN_HUB_EMAIL', default='admin@datamine.com')
 ADMIN_HUB_PASSWORD = config('ADMIN_HUB_PASSWORD', default='OMISCIENT_ROOT_HUB') # reload_token: 001
+
+# SSL Security Settings
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Anti-Clickjacking
+X_FRAME_OPTIONS = 'DENY'
