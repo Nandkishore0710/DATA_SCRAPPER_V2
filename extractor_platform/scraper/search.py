@@ -127,26 +127,40 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     places = []
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=25000)
+        await page.goto(url, wait_until='domcontentloaded', timeout=40000)
         
-        # Cookie acceptance
+        # 🤖 ROBOT DETECTION (Explicit check for CAPTCHAs)
+        content = await page.content()
+        if "google.com/sorry" in page.url or "not a robot" in content.lower():
+            log.error("scraper.blocked", reason="CAPTCHA_DETECTED", proxy=proxy_url)
+            return []
+
+        # Cookie acceptance (Aggressive & Multi-language)
         try:
-            accept_selectors = ['button[aria-label*="Accept"]', 'button[aria-label*="Agree"]', 'button.VfPpkd-LgbsSe']
-            for s in accept_selectors:
+            for s in ['button[aria-label*="Accept"]', 'button[aria-label*="Agree"]', 'button.VfPpkd-LgbsSe', 'button[aria-label*="Alle akzeptieren"]']:
                 btn = page.locator(s).first
-                if await btn.is_visible(timeout=1000):
+                if await btn.count() > 0:
                     await btn.click()
+                    await asyncio.sleep(0.5) # Wait for overlay to clear
                     break
         except: pass
 
-        # Check for list or single result
-        try:
-            await page.wait_for_selector('div[role="feed"]', timeout=12000)
-        except:
+        # Check for list or single result (Robust Multi-Selector Feed Detection)
+        feed_selectors = ['div[role="feed"]', 'div[aria-label*="Results for"]', '.m67q60667232']
+        feed_found = False
+        for fs in feed_selectors:
+            try:
+                await page.wait_for_selector(fs, timeout=8000)
+                feed_found = True
+                break
+            except: continue
+            
+        if not feed_found:
+            # Maybe it redirected to a single place page
             if await page.locator('h1.DUwDvf').count() > 0:
                 one = await extract_single_page(page, cell)
                 if one: return [one]
-            log.info("search.no_feed_found", url=url)
+            log.warning("scraper.no_results_feed", query=query, url=page.url)
             return []
 
         # Fast Scroll
