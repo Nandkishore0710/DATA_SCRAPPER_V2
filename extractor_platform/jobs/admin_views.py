@@ -38,10 +38,11 @@ def admin_hub_login(request):
     if request.method == 'POST':
         step = request.session.get('admin_login_step', 1)
         if step == 1:
-            email = request.POST.get('email', '').strip()
-            if email == settings.ADMIN_HUB_EMAIL:
+            email = request.POST.get('email', '').strip().lower()
+            if email in [e.strip().lower() for e in settings.ADMIN_HUB_EMAILS]:
                 otp = random.randint(100000, 999999)
                 request.session['admin_otp'] = otp
+                request.session['admin_email'] = email
                 request.session['admin_login_step'] = 2
                 print(f"\n🚨 [ADMIN ACCESS] | EMAIL: {email} | TOKEN: {otp}\n")
                 def _send_async_otp():
@@ -51,19 +52,27 @@ def admin_hub_login(request):
                             conn = get_connection(host=db_settings.smtp_host, port=db_settings.smtp_port, username=db_settings.smtp_user, password=db_settings.smtp_password, use_tls=db_settings.smtp_use_tls)
                             sender = db_settings.smtp_user
                         else:
-                            conn = None; sender = settings.DEFAULT_FROM_EMAIL
+                            # 🚀 API BYPASS Fallback logic integrated
+                            sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+                            resend_key = config('RESEND_API_KEY', default='')
+                            if resend_key:
+                                import requests
+                                requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
+                                return
+                            conn = None
                         send_mail('Admin Hub Token', f'Token: {otp}', sender, [email], fail_silently=False, connection=conn)
-                    except Exception as e: print(f"[SMTP_FAILURE]: {e}")
+                    except Exception as e: print(f"[ADMIN_SMTP_FAILURE]: {e}")
                 threading.Thread(target=_send_async_otp, daemon=True).start()
                 return render(request, 'admin/intel_login.html', {'step': 2, 'email': email})
             else: error = "Unauthorized."
         elif step == 2:
             otp_input, pwd_input = request.POST.get('otp', '').strip(), request.POST.get('password', '').strip()
+            admin_email = request.session.get('admin_email', '')
             if str(otp_input) == str(request.session.get('admin_otp')) and pwd_input == settings.ADMIN_HUB_PASSWORD:
-                target_user = User.objects.filter(email=settings.ADMIN_HUB_EMAIL, is_staff=True).first() or User.objects.filter(is_superuser=True).first()
+                target_user = User.objects.filter(email=admin_email, is_staff=True).first() or User.objects.filter(is_superuser=True).first()
                 if target_user: login(request, target_user)
                 request.session['admin_hub_verified'] = True
-                request.session.pop('admin_otp', None); request.session.pop('admin_login_step', None)
+                request.session.pop('admin_otp', None); request.session.pop('admin_login_step', None); request.session.pop('admin_email', None)
                 return redirect('admin_dashboard')
             else: error = "Invalid credentials."
     request.session['admin_login_step'] = 1
