@@ -650,6 +650,18 @@ if (switchToEmail) {
     };
 }
 
+const switchSignup = document.getElementById('btn-switch-signup');
+if (switchSignup) {
+    switchSignup.onclick = (e) => {
+        e.preventDefault();
+        hideAllAuthForms();
+        document.getElementById('auth-form-phone').style.display = 'block';
+        document.getElementById('auth-title').innerText = "Join the Platform";
+        document.getElementById('auth-subtitle').innerText = "New operative? Register with your mobile number.";
+        hideAuthError();
+    };
+}
+
 // Step 1: Send OTP
 const authFormPhone = document.getElementById('auth-form-phone');
 if (authFormPhone) {
