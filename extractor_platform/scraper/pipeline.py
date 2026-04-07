@@ -105,8 +105,8 @@ async def run_keyword_pipeline(keyword_job_id: int):
             nonlocal saved_count, processed_cells
             async with semaphore:
                 # 🛑 CANCELLATION CHECK: stop if user clicked cancel
-                curr_status = await KeywordJob.objects.filter(id=keyword_job_id).avalues_list('status', flat=True)
-                if curr_status and curr_status[0] == 'cancelled':
+                curr_job = await KeywordJob.objects.filter(id=keyword_job_id).only('status').aget()
+                if curr_job.status == 'cancelled':
                     log.info("pipeline.cancelled_by_user", id=keyword_job_id)
                     return
 
