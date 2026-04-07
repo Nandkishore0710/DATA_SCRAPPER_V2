@@ -5,7 +5,15 @@ import random
 import structlog
 import math
 from urllib.parse import quote
-from playwright_stealth import stealth_async
+try:
+    from playwright_stealth import stealth_async
+except ImportError:
+    try:
+        from playwright_stealth.stealth import stealth_async
+    except ImportError:
+        # Fallback to sync or no-op if async is missing
+        async def stealth_async(page, **kwargs): pass
+
 from fake_useragent import UserAgent
 
 ua = UserAgent()
