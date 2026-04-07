@@ -350,7 +350,7 @@
             const data = await res.json();
 
             if(data.success) {
-                alert('Account details updated successfully');
+                alert(data.msg || 'Account details updated successfully');
                 location.reload();
             } else {
                 alert(data.error || 'Update failed');
@@ -380,10 +380,10 @@
             });
             const data = await res.json();
             if(data.success) {
-                alert(data.msg);
+                alert(data.msg || 'Package updated successfully');
                 location.reload();
             } else {
-                alert(data.error);
+                alert(data.error || 'Update failed');
             }
         }
 
@@ -418,15 +418,16 @@
                     body: JSON.stringify({ credits: newVal })
                 });
                 const data = await res.json();
-                if(data.success) {
-                    location.reload();
-                } else {
-                    alert(data.error);
-                }
-            } catch (e) {
-                alert('Update Error: ' + e.message);
+            if(data.success) {
+                alert(data.msg || 'Credits updated successfully');
+                location.reload();
+            } else {
+                alert(data.error || 'Update failed');
             }
+        } catch (e) {
+            alert('Update Error: ' + e.message);
         }
+    }
 
         async function resetPassword(userId) {
             const newPassword = prompt('Enter NEW password for this subject:');
@@ -443,7 +444,7 @@
                 });
                 const data = await res.json();
                 if(data.success) {
-                    alert(data.msg);
+                    alert(data.msg || 'Password updated successfully');
                 } else {
                     alert(data.error || 'Reset failed');
                 }
