@@ -108,7 +108,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     VERSION 1.4 — Layout-Agnostic Extraction
     Uses multi-selector fallbacks to survive Google Maps updates.
     """
-    query = f"{keyword} in {cell.display_name}" if cell.display_name and cell.display_name.lower() not in keyword.lower() else keyword
+    query = keyword
     zoom = getattr(cell, 'zoom', 14)
     url = f"https://www.google.com/maps/search/{quote(query)}/@{cell.center_lat},{cell.center_lng},{zoom}z"
 
@@ -135,7 +135,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     places = []
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=40000)
+        await page.goto(url, wait_until='domcontentloaded', timeout=60000)
         
         # 🤖 ROBOT DETECTION (Explicit check for CAPTCHAs)
         content = await page.content()
