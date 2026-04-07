@@ -22,25 +22,34 @@ CONCURRENCY = 2  # Lowered to 2 for better stealth and to prevent IP flagging
 
 async def run_keyword_pipeline(keyword_job_id: int):
     """
-    VERSION 1.2 OPTIMIZED PIPELINE
-    Uses high-concurrency cell processing and intelligent sleep management.
+    VERSION 1.3 SMART PIPELINE
+    Includes automated stopping for lead limits and area exhaustion.
     """
     from jobs.models import KeywordJob, Place, BulkJob
     
-    kj = await KeywordJob.objects.select_related('bulk_job').aget(id=keyword_job_id)
+    kj = await KeywordJob.objects.select_related('bulk_job', 'bulk_job__user').aget(id=keyword_job_id)
     bj = kj.bulk_job
     location = bj.location
     grid_size = bj.grid_size
     
+    # Get User Lead Limit
+    lead_limit = 5000
     try:
-        # Step 0: Direct Connection Mode (Disabled Proxy as per user request)
-        proxy_url = None # Force Direct Server IP
+        profile = await bj.user.profile.aget()
+        if profile.package: lead_limit = profile.package.lead_limit
+    except: pass
+
+    try:
+        # Step 0: Direct Connection Mode (Force Direct Server IP)
+        proxy_url = None 
         bj.execution_mode = 'direct'
         await bj.asave()
 
         seen = set()
         saved_count = 0
         processed_cells = 0
+        consecutive_empty = 0
+        MAX_EMPTY = 10 # Stop if 10 cells in a row are empty
         
         async def _save_extracted_places(places):
             from jobs.models import KeywordJob
@@ -102,8 +111,19 @@ async def run_keyword_pipeline(keyword_job_id: int):
         processed_cells = 0
 
         async def _process_cell_logic(i, cell, browser=None):
-            nonlocal saved_count, processed_cells
-            # 🛑 PRE-EMPTIVE INCREMENT (Ensures progress bar moves)
+            nonlocal saved_count, processed_cells, consecutive_empty
+            
+            # 🛑 STOP CHECK: Limit or Exhaustion
+            if saved_count >= lead_limit:
+                kj.status_message = f"Stopped: Lead Limit Reached ({lead_limit})"
+                kj.status = 'completed'
+                return
+            if consecutive_empty >= MAX_EMPTY:
+                kj.status_message = f"Stopped: Area Exhausted (Checked {processed_cells} cells)"
+                kj.status = 'completed'
+                return
+
+            # 🛑 PRE-EMPTIVE INCREMENT
             processed_cells += 1
             if processed_cells % 2 == 0:
                 kj.cells_done = processed_cells
@@ -113,12 +133,14 @@ async def run_keyword_pipeline(keyword_job_id: int):
                 async with semaphore:
                     # 🛑 CANCELLATION CHECK
                     curr_job = await KeywordJob.objects.filter(id=keyword_job_id).only('status').aget()
-                    if curr_job.status == 'cancelled':
+                    if curr_job.status in ('cancelled', 'completed'):
                         return
 
                     cached = await get_cached_results(kj.keyword, location, cell.index)
                     if cached is not None:
-                        await _save_extracted_places(cached)
+                        found = await _save_extracted_places(cached)
+                        if found > 0: consecutive_empty = 0
+                        else: consecutive_empty += 1
                     else:
                         if use_playwright:
                             places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
@@ -126,8 +148,13 @@ async def run_keyword_pipeline(keyword_job_id: int):
                             places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
                         
                         if places:
-                            await _save_extracted_places(places)
+                            found = await _save_extracted_places(places)
                             await set_cached_results(kj.keyword, location, cell.index, places)
+                            if found > 0: consecutive_empty = 0
+                            else: consecutive_empty += 1
+                        else:
+                            consecutive_empty += 1
+
             except Exception as e:
                 log.warning("pipeline.cell_failed", index=cell.index, error=str(e))
             finally:
