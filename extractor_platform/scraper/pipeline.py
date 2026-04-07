@@ -9,7 +9,7 @@ from playwright.async_api import async_playwright
 from .boundary import get_city_boundary
 from .grid import build_grid
 from .cache import get_cached_results, set_cached_results
-from .search import search_grid_cell, scrapling_search_cell, scrapling_search_full
+from .search import search_grid_cell, scrapling_search_cell
 from .proxy_logic import get_active_proxy_url
 
 log = structlog.get_logger()
