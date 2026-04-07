@@ -22,7 +22,7 @@ class GoogleDetailsExtractor:
         try:
             # 1. NAME Extraction (Robust Fallbacks)
             name = await self._find_text(page, [
-                'h1.fontHeadlineLarge', 'h1.du43p', 'h1', '[role="heading"]', 'h1.DUwDvf'
+                'h1.DUwDvf', 'h1.fontHeadlineLarge', 'h1.du43p', 'h1', '[role="heading"]'
             ])
             if not name: return None
 
@@ -141,11 +141,12 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
         # Check for list or single result
         try:
-            await page.wait_for_selector('div[role="feed"]', timeout=6000)
+            await page.wait_for_selector('div[role="feed"]', timeout=12000)
         except:
             if await page.locator('h1.DUwDvf').count() > 0:
                 one = await extract_single_page(page, cell)
                 if one: return [one]
+            log.info("search.no_feed_found", url=url)
             return []
 
         # Fast Scroll
@@ -166,7 +167,8 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 async def extract_from_cards(page, cell) -> list:
     """Extract list of businesses from result cards using layout-agnostic selectors."""
     places = []
-    cards = await page.locator('div[role="feed"] > div > div[jsaction]').all()
+    # Identify result cards (links with specific class 'hfpxzc' or generic article role)
+    cards = await page.locator('a.hfpxzc, div[role="article"], div.m67q60').all()
 
     for card in cards:
         try:

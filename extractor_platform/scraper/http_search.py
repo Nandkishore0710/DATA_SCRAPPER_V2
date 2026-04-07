@@ -55,18 +55,12 @@ def _parse_json_response(raw_text: str) -> list:
             except json.JSONDecodeError:
                 pos += 1
 
-    def is_business_obj(item):
-        """Checks if a list item looks like a Google Maps business entity."""
-        if not (isinstance(item, list) and len(item) >= 14):
-            return False
-        
-        # In some versions, the business info is directly at index 14
-        # In others it might be slightly different. We check for a list at index 14 or 15.
-        for idx in [14, 15]:
-            if len(item) > idx and isinstance(item[idx], list) and len(item[idx]) >= 11:
-                # Further check: index 11 of that list should be a string (name)
-                if len(item[idx]) > 11 and isinstance(item[idx][11], str) and item[idx][11]:
-                    return True
+        # Check for a list representing the business. 
+        # Typically index 1 contains the name, and index 14 contains the address.
+        if len(item) > 1 and isinstance(item[1], str) and len(item) > 14:
+            # Further verification: Rating usually at index 2, nested
+            if isinstance(item[2], list) and len(item[2]) > 7:
+                 return True
         return False
 
     def recursive_find_businesses(obj):
@@ -109,34 +103,24 @@ def _parse_json_response(raw_text: str) -> list:
             
             for r in business_records:
                 try:
-                    # Find which index (14 or 15) has the data
-                    p_info = None
-                    for idx in [14, 15]:
-                        if len(r) > idx and isinstance(r[idx], list) and len(r[idx]) >= 11:
-                            if len(r[idx]) > 11 and isinstance(r[idx][11], str):
-                                p_info = r[idx]
-                                break
-                    
-                    if not p_info: continue
-                    
-                    name = p_info[11]
+                    # New mapping based on latest Google Maps JSON API structure
+                    name = r[1]
                     if not name: continue 
                     
-                    # place_id fallback: use name if ID is missing
-                    p_id = p_info[10] if (len(p_info) > 10 and p_info[10]) else name
+                    # place_id fallback: use index 10 if present
+                    p_id = r[10] if (len(r) > 10 and r[10]) else name
                     
                     places.append({
                         'place_id': p_id,
                         'name': name,
-                        'category': p_info[13][0] if len(p_info) > 13 and p_info[13] else "",
-                        'street': p_info[2][0] if len(p_info) > 2 and p_info[2] else "",
-                        'city': p_info[2][1] if len(p_info) > 2 and p_info[2] and len(p_info[2]) > 1 else "",
-                        'phone': p_info[178][0][3] if (len(p_info) > 178 and p_info[178] and isinstance(p_info[178], list) and p_info[178][0] and len(p_info[178][0]) > 3) else "",
-                        'website': p_info[7][0] if len(p_info) > 7 and p_info[7] and isinstance(p_info[7], list) and p_info[7][0] else "",
-                        'rating': p_info[4][7] if (len(p_info) > 4 and p_info[4] and isinstance(p_info[4], list) and len(p_info[4]) > 7) else "",
-                        'review_count': p_info[4][8] if (len(p_info) > 4 and p_info[4] and isinstance(p_info[4], list) and len(p_info[4]) > 8) else "",
-                        'latitude': p_info[9][2] if len(p_info) > 9 and p_info[9] and isinstance(p_info[9], list) and len(p_info[9]) > 2 else None,
-                        'longitude': p_info[9][3] if len(p_info) > 9 and p_info[9] and isinstance(p_info[9], list) and len(p_info[9]) > 3 else None,
+                        'category': r[13][0] if (len(r) > 13 and r[13]) else "",
+                        'street': r[14] if (len(r) > 14 and isinstance(r[14], str)) else "",
+                        'phone': (r[178][0][0] if (len(r) > 178 and r[178] and r[178][0]) else "") if len(r) > 178 else "",
+                        'website': r[7][0] if (len(r) > 7 and r[7] and isinstance(r[7], list) and r[7][0]) else "",
+                        'rating': r[2][6] if (len(r) > 2 and r[2] and len(r[2]) > 6) else "",
+                        'review_count': r[2][7] if (len(r) > 2 and r[2] and len(r[2]) > 7) else "",
+                        'latitude': r[9][2] if (len(r) > 9 and r[9] and len(r[9]) > 2) else None,
+                        'longitude': r[9][3] if (len(r) > 9 and r[9] and len(r[9]) > 3) else None,
                         'maps_url': f"https://www.google.com/maps/place/?q=place_id:{p_id}" if p_id else ""
                     })
                 except Exception as pe:
