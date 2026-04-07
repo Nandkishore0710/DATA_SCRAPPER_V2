@@ -68,3 +68,4 @@ twilio
 playwright-stealth
 fake-useragent
 curl_cffi
+browserforge
