@@ -15,13 +15,14 @@ def run_keyword_job(keyword_job_id: int):
     """Runs one keyword pipeline in its own event loop."""
     from scraper.pipeline import run_keyword_pipeline
 
+    import traceback
     log.info("thread.executing", id=keyword_job_id)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(run_keyword_pipeline(keyword_job_id))
     except Exception as e:
-        log.error("thread.failed", keyword_job_id=keyword_job_id, error=str(e))
+        log.error("thread.failed", keyword_job_id=keyword_job_id, error=str(e), stack=traceback.format_exc())
     finally:
         loop.close()
 

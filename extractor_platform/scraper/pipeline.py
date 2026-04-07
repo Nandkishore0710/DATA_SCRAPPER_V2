@@ -33,13 +33,9 @@ async def run_keyword_pipeline(keyword_job_id: int):
     grid_size = bj.grid_size
     
     try:
-        # Step 0: Check for Proxy
-        proxy_url = get_active_proxy_url()
-        if proxy_url:
-            bj.execution_mode = 'proxy'
-            log.info("pipeline.mode_active", mode="PROXY")
-        else:
-            bj.execution_mode = 'direct'
+        # Step 0: Direct Connection Mode (Disabled Proxy as per user request)
+        proxy_url = None # Force Direct Server IP
+        bj.execution_mode = 'direct'
         await bj.asave()
 
         seen = set()
