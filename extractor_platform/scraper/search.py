@@ -5,6 +5,10 @@ import random
 import structlog
 import math
 from urllib.parse import quote
+from playwright_stealth import stealth_async
+from fake_useragent import UserAgent
+
+ua = UserAgent()
 from scraper.cache import get_cached_results, set_cached_results
 
 log = structlog.get_logger()
@@ -100,16 +104,26 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     zoom = getattr(cell, 'zoom', 14)
     url = f"https://www.google.com/maps/search/{quote(query)}/@{cell.center_lat},{cell.center_lng},{zoom}z"
 
-    context = await browser.new_context(
-        viewport={'width': 1280, 'height': 800},
-        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    )
-    if proxy_url: await context.set_extra_http_headers({"X-Proxy": proxy_url}) # Some proxies like this
+    # Dynamic, realistic User-Agent
+    random_ua = ua.random if ua else 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+    
+    # Correct Playwright Proxy Parameter
+    context_args = {
+        'viewport': {'width': random.randint(1280, 1440), 'height': random.randint(800, 900)},
+        'user_agent': random_ua,
+    }
+    
+    if proxy_url:
+        context_args['proxy'] = {'server': proxy_url}
+        log.info("playwright.context_created", proxy=proxy_url)
 
-    # Optimize: Block images/styles
+    context = await browser.new_context(**context_args)
+
+    # Optimize: Block images/styles (saves bandwidth & speed)
     await context.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf,css}", lambda r: r.abort())
     
     page = await context.new_page()
+    await stealth_async(page) # Apply fingerprint masks
     places = []
 
     try:

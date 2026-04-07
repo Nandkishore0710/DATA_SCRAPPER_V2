@@ -65,3 +65,5 @@ gunicorn
 whitenoise
 aiohttp-socks
 twilio
+playwright-stealth
+fake-useragent
