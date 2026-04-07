@@ -137,8 +137,9 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
     context = await browser.new_context(**context_args)
 
-    # Optimize: Block images/styles (saves bandwidth & speed)
+    # Optimize: Block images/styles/analytics (saves bandwidth, CPU & RAM)
     await context.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf,css}", lambda r: r.abort())
+    await context.route(re.compile(r"(google-analytics|doubleclick|facebook|analytics|beacon|telemetry)"), lambda r: r.abort())
     
     page = await context.new_page()
     await stealth_async(page) # Apply fingerprint masks

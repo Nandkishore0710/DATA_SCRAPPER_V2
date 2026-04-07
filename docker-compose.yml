@@ -36,7 +36,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --no-input &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 core.wsgi:application"
+             gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 core.wsgi:application"
 
 # Optional: Celery Worker (uncomment to activate if you switch to Celery)
 #  worker:
