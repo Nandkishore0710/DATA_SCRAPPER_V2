@@ -280,8 +280,21 @@ class BulkJobListView(APIView):
         } for j in jobs])
 
 
-class BulkJobDeleteView(APIView):
+class BulkJobDetailView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def get(self, request, bulk_job_id):
+        try:
+            bulk_job = BulkJob.objects.prefetch_related('keyword_jobs').get(id=bulk_job_id, user=request.user)
+            return Response({
+                'bulk_job_id': bulk_job.id,
+                'location': bulk_job.location,
+                'status': bulk_job.status,
+                'total_extracted': bulk_job.total_extracted,
+                'created_at': bulk_job.created_at,
+            }, status=200)
+        except BulkJob.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
 
     def delete(self, request, bulk_job_id):
         try:
