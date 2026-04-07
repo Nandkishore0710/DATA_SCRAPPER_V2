@@ -18,7 +18,7 @@ log = structlog.get_logger()
 JOB_TIMEOUT_SECONDS = 7200 
 # Global config
 JOB_TIMEOUT_SECONDS = 7200 
-CONCURRENCY = 4  # Increased to 4 for maximum speed on optimized hardware
+CONCURRENCY = 1  # GHOST MODE: Max optimization for 10% CPU usage
 
 async def run_keyword_pipeline(keyword_job_id: int):
     """
@@ -177,7 +177,16 @@ async def run_keyword_pipeline(keyword_job_id: int):
 
         if use_playwright:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-gpu',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--js-flags="--max-old-space-size=512"'
+                    ]
+                )
                 tasks = [ _process_cell_logic(i, cell, browser=browser) for i, cell in enumerate(cells) ]
                 # 🛑 RETURN_EXCEPTIONS=True: Key for resiliency
                 await asyncio.gather(*tasks, return_exceptions=True)

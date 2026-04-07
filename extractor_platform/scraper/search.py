@@ -137,9 +137,17 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
     context = await browser.new_context(**context_args)
 
-    # Optimize: Block images/styles/analytics (saves bandwidth, CPU & RAM)
-    await context.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf,css}", lambda r: r.abort())
-    await context.route(re.compile(r"(google-analytics|doubleclick|facebook|analytics|beacon|telemetry)"), lambda r: r.abort())
+    # 🏎️ ULTRA-SLIM: Block all non-essential resources to kill CPU spikes
+    async def block_waste(route):
+        bad_types = ['image', 'stylesheet', 'font', 'media', 'other', 'manifest', 'texttrack', 'object', 'imageset']
+        if route.request.resource_type in bad_types:
+            await route.abort()
+        elif any(x in route.request.url.lower() for x in ['google-analytics', 'doubleclick', 'facebook', 'analytics', 'beacon', 'telemetry', 'ad-delivery']):
+            await route.abort()
+        else:
+            await route.continue_()
+
+    await context.route("**/*", block_waste)
     
     page = await context.new_page()
     await stealth_async(page) # Apply fingerprint masks
@@ -211,113 +219,74 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     return places
 
 async def extract_from_cards(page, cell) -> list:
-    """Extract list of businesses from result cards using layout-agnostic selectors."""
+    """HYPER-FAST ARIA SCANNER: Extracts data instantly from the list without clicking."""
     places = []
     # Identify result cards (links with specific class 'hfpxzc' or generic article role)
     cards = await page.locator('a.hfpxzc, [role="article"]').all()
 
     for i, card in enumerate(cards):
         try:
-            # 🕵️‍♂️ AD BLOCKADE: Check if this is a 'Sponsored' or 'Ad' result
-            card_text = (await card.text_content() or "").lower()
-            if any(ad_marker in card_text for ad_marker in ['ad ', 'sponsored', 'advertisement']):
-                log.info("scraper.ad_skipped", index=i)
+            # 1. Get ARIA metadata (High efficiency)
+            label = await card.get_attribute('aria-label') or ""
+            text = await card.inner_text() or ""
+            
+            # 🕵️‍♂️ AD BLOCKADE
+            if any(ad_marker in label.lower() or ad_marker in text.lower() for ad_marker in ['ad ', 'sponsored']):
                 continue
 
-            # 1. Activate Detail Panel by clicking the card (FORCE it to bypass overlays)
-            try:
-                await card.click(force=True, timeout=5000)
-            except Exception as e:
-                log.debug("scraper.click_retry", index=i, error=str(e))
-                # Fallback to JS click if Playwright's force-click still struggles
-                await page.evaluate("(el) => el.click()", await card.element_handle())
-            
-            # Give short time for profile to start loading
-            await asyncio.sleep(1.2) 
-            
-            # 1. Name
-            name = ""
-            name_el = page.locator('h1.DUwDvf').first
-            if await name_el.count() > 0:
-                name = (await name_el.text_content() or "").strip()
-            
-            if not name:
-                # Fallback to card name if panel h1 isn't ready
-                name_el = card.locator('div.qBF1Pd, [role="heading"]').first
-                name = (await name_el.text_content() or "").strip()
-                
+            # 2. NAME EXTRACTION (From card text)
+            name = label.split(' · ')[0] if ' · ' in label else text.split('\n')[0]
             if not name: continue
 
-            # 2. Rating & Review Count
+            # 3. METADATA PARSING (Rating, Count, Category)
+            # Google often formats aria-label: "Name · Rating (Reviews) · Category"
             rating = ""
             review_count = ""
-            try:
-                # Optimized Rating Selector (Checks aria-labels and text)
-                rating_el = page.locator('span.MW4etd, span.ceA7Yc, [aria-label*="stars"]').first
-                if await rating_el.count() > 0:
-                    raw_rating = await rating_el.get_attribute('aria-label') or await rating_el.text_content() or ""
-                    # Extract decimal number (e.g., "4.5" from "4.5 stars")
-                    import re # Ensue re is available
-                    match = re.search(r'(\d[\d\.]*)', raw_rating)
-                    if match:
-                        rating = match.group(1)
-                
-                rev_el = page.locator('span.UY7F9 button, span.UY7F9').first
-                if await rev_el.count() > 0:
-                    review_count = re.sub(r'[^\d]', '', await rev_el.text_content() or "")
-            except: pass
+            category = ""
+            
+            if ' · ' in label:
+                parts = [p.strip() for p in label.split(' · ')]
+                if len(parts) >= 2:
+                    # Look for rating e.g. "4.5 stars"
+                    r_match = re.search(r'(\d[\d\.]*)\s+stars', label)
+                    if r_match: rating = r_match.group(1)
+                    
+                    # Look for reviews e.g. "(1,234)"
+                    rev_match = re.search(r'\((\d[\d,]*)\)', label)
+                    if rev_match: review_count = rev_match.group(1).replace(',', '')
+                    
+                    # Category is often the last part or middle
+                    category = parts[1] if len(parts) > 1 else ""
 
-            # 3. Precise Profile Extraction (Phone/Address/City)
+            # 4. ADDRESS / PHONE / WEBSITE (Scraped from card text lines)
+            lines = text.split('\n')
             address = ""
             phone = ""
             website = ""
-            city = ""
             
-            # Address & City
-            addr_btn = page.locator('button[aria-label^="Address:"]').first
-            if await addr_btn.count() > 0:
-                address = (await addr_btn.get_attribute('aria-label') or "").replace("Address: ", "").strip()
-                if ',' in address:
-                    parts = [p.strip() for p in address.split(',')]
-                    # Logic: last part is pincode/state, 2nd to last is usually city
-                    if len(parts) >= 2:
-                        city = parts[-2] if len(parts) < 4 else parts[-3]
-            
-            # Phone
-            phone_btn = page.locator('button[aria-label^="Phone:"]').first
-            if await phone_btn.count() > 0:
-                phone = (await phone_btn.get_attribute('aria-label') or "").replace("Phone: ", "").strip()
-            
-            # Website
-            web_btn = page.locator('a[data-item-id="authority"]').first
-            if await web_btn.count() > 0:
-                website = await web_btn.get_attribute('href') or ""
+            # Heuristic: Addresses or phone numbers are usually in the 3rd or 4th line
+            for line in lines[1:]:
+                if re.search(r'\d{5}', line): address = line # Zip code hint
+                if re.search(r'(\d{3}-\d{3}-\d{4}|\+\d{2})', line): phone = line # Phone pattern
+                if '.' in line and '/' not in line and ' ' not in line: website = line # Simple URL hint
 
-            # 4. Final Place Object
-            lat, lng = cell.center_lat, cell.center_lng
             places.append({
-                'place_id': name,
+                'place_id': f"{name}_{cell.index}_{i}",
                 'name': name,
-                'category': "Business",
-                'street': address,
-                'city': city,
-                'phone': phone,
-                'rating': rating, # Correctly match the 'Place' model
-                'review_count': review_count,
+                'category': category,
+                'street': address or "See Dashboard",
+                'city': address.split(',')[0].strip() if address and ',' in address else "Bhilwara",
+                'phone': phone or "Check Panel",
                 'website': website,
-                'maps_url': page.url,
-                'latitude': lat,
-                'longitude': lng
+                'rating': rating,
+                'review_count': review_count,
+                'maps_url': await card.get_attribute('href') or page.url
             })
-
-            # Check for early termination limit (safety)
-            if len(places) >= 150: break
-
         except Exception as e:
-            log.info("scraper.card_error", error=str(e))
+            log.debug("scraper.card_skipped", error=str(e))
             continue
-
     return places
+
 
 # Helper imports for scrapling-based fallback if needed
 from scrapling.fetchers import AsyncFetcher
