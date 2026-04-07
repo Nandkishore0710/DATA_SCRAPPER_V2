@@ -62,14 +62,36 @@ def send_otp(request):
         UserOTP.objects.create(phone=identifier, otp=otp)
         try:
             from django.core.mail import get_connection
+            # 🛡️ Attempt 1: Standard SMTP (Bypass Port 465)
             connection = get_connection(
                 host=host, port=port, username=user, password=pwrd, use_tls=use_tls, use_ssl=use_ssl
             )
             html = render_to_string('emails/otp_verification.html', {'otp': otp})
             send_mail(f"Code: {otp}", f"Your code is {otp}", user, [identifier], html_message=html, connection=connection)
-            return Response({'message': 'OTP sent to email', 'identifier': identifier})
-        except Exception as e:
-            return Response({'error': f'Failed sending email: {str(e)}'}, status=500)
+            return Response({'message': 'OTP sent via SMTP', 'identifier': identifier})
+        except Exception as smtp_error:
+            # 🚀 Attempt 2: API Rocket Bypass (Unblockable Port 443)
+            resend_key = config('RESEND_API_KEY', default='')
+            if resend_key:
+                try:
+                    import requests
+                    resp = requests.post(
+                        "https://api.resend.com/emails",
+                        headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                        json={
+                            "from": config('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev'),
+                            "to": identifier,
+                            "subject": f"Verify Your Code: {otp}",
+                            "html": html
+                        },
+                        timeout=10
+                    )
+                    if resp.status_code in [200, 201]:
+                        return Response({'message': 'OTP sent via API Bypass', 'identifier': identifier})
+                except Exception as api_error:
+                    pass
+            
+            return Response({'error': f'All delivery methods failed. SMTP Error: {str(smtp_error)}'}, status=500)
 
     # 📱 TWILIO METHOD
     phone = identifier if identifier.startswith('+') else f"+91{identifier}"
