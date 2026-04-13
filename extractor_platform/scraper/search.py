@@ -102,28 +102,37 @@ def extract_city_from_address(address: str, fallback_city: str = "") -> str:
     if not address:
         return fallback_city
     
-    # Clean noise first
+    # 1. Clean the address string
     clean_addr = clean_address(address)
-    parts = [p.strip() for p in clean_addr.split(',')]
+    segments = [s.strip() for s in clean_addr.split(',')]
     
-    # Walk backwards through parts to find a city-like name
-    for part in reversed(parts):
-        part = clean_text(part)
+    # Common Indian states to ignore
+    states = {'rajasthan', 'maharashtra', 'gujarat', 'delhi', 'haryana', 'up', 'mp', 'punjab', 'karnataka', 'tamil nadu'}
+    
+    # 2. Walk backwards through parts
+    for part in reversed(segments):
+        # Scrub PIN codes (6 digits)
+        part = re.sub(r'\d{6}', '', part).strip()
+        # Scrub state names
+        for state in states:
+            part = re.sub(rf'\b{state}\b', '', part, flags=re.IGNORECASE).strip()
         
-        # Skip empty, zip codes, Plus Codes, and meta-noise
-        if not part or is_plus_code(part):
+        # Scrub punctuation/noise
+        part = re.sub(r'^[\s·:•\-–—,]+', '', part).strip()
+        
+        # Skip if nothing left, or if it's junk like 'India'
+        if not part or part.lower() in ('india', 'bharat'):
             continue
-        if re.match(r'^\d{5,6}$', part):  # ZIP/PIN code
-            continue
-        if part.lower() in ('india', 'rajasthan', 'maharashtra', 'gujarat', 'delhi', 'haryana', 'up', 'mp'):
+        if is_plus_code(part):
             continue
         if len(part) < 3:
             continue
             
-        # If the part starts with a category (like "Gym · "), it's a dirty first part, skip it
+        # Ignore if it matches a category (like "Gym")
         if CATEGORY_PREFIXES.match(part):
             continue
             
+        # This is our city!
         return part
     
     return fallback_city

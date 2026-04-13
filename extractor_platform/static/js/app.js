@@ -1853,11 +1853,11 @@ function renderTable() {
             if (f === 'category' || f === 'categories') {
                 const items = (val && val !== '-') ? (val.includes(',') ? val.split(',') : [val]) : [];
                 if (items.length === 1) {
-                    val = `<span class="item-badge" style="background:rgba(249,115,22,0.1); color:var(--accent); font-weight:700;">${items[0]}</span>`;
+                    val = `<span class="item-badge" style="background:rgba(249,115,22,0.1); color:var(--accent); font-weight:700; margin-right: 4px;">${items[0]}</span>`;
                 } else if (items.length > 1) {
-                    val = `<span class="item-badge">${items.length} items</span>`;
+                    val = `<span class="item-badge" style="margin-right: 4px;">${items.length} items</span>`;
                 } else {
-                    val = `<span class="item-badge" style="opacity:0.5;">-</span>`;
+                    val = `<span class="item-badge" style="opacity:0.5; margin-right: 4px;">-</span>`;
                 }
             } else if (f === 'website' || f === 'maps_url' || f === 'url') {
                 if (val !== '-') {
