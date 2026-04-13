@@ -234,6 +234,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
             cards = await page.locator('a.hfpxzc, [role="article"]').all()
             
             for i, p in enumerate(places):
+                await asyncio.sleep(0.1) # 🛑 STABILITY: Yield for heartbeats 
                 # Skip if already complete
                 if p.get('phone') and p.get('website'):
                     continue
@@ -286,6 +287,7 @@ async def extract_from_cards(page, cell) -> list:
     cards = await page.locator('a.hfpxzc, [role="article"]').all()
 
     for i, card in enumerate(cards):
+        await asyncio.sleep(0.05) # 🛑 STABILITY: Yield for heartbeats
         try:
             label = await card.get_attribute('aria-label') or ""
             text = await card.inner_text() or ""

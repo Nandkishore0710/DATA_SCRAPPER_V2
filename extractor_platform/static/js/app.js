@@ -354,24 +354,62 @@ async function renderHistory() {
                 : `<span id="${histTimerId}" style="font-size:0.8rem; font-weight:700; color:var(--accent);">⏱ 0s</span>`;
 
             const tr = document.createElement('tr');
-            tr.style.cursor = 'pointer';
-            tr.onclick = () => viewHistoryItem(job.bulk_job_id);
+            tr.className = 'history-row-item';
+            tr.style.cssText = 'cursor: pointer; transition: all 0.2s ease; border-bottom: 1px solid var(--border-light);';
+            tr.onmouseover = () => { tr.style.background = 'var(--bg-hover)'; };
+            tr.onmouseout = () => { tr.style.background = 'transparent'; };
+            tr.onclick = (e) => { if(!e.target.closest('button')) viewHistoryItem(job.bulk_job_id); };
+
+            const histTimerId = `hist-timer-${job.bulk_job_id}`;
+            const histStaticDuration = jobDurationText(job);
+            const durationDisplay = histStaticDuration !== null 
+                ? histStaticDuration.replace('✅ ', '').replace('🛑 ', '') 
+                : `<span id="${histTimerId}" style="color:var(--accent);">⏱ 0s</span>`;
+
             tr.innerHTML = `
-                <td><span class="status-badge ${badgeClass}">${job.status.toUpperCase()}</span></td>
-                <td style="color:var(--text-muted); font-size: 0.85rem;">${date}</td>
-                <td>
-                    <div style="font-weight: 700;">${count} items</div>
-                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Duration: ${histStaticDuration !== null ? histStaticDuration.replace('✅ ', '') : '<span id="' + histTimerId + '">0s</span>'}</div>
+                <td style="padding: 16px 24px;">
+                    <span class="status-badge ${badgeClass}" style="
+                        padding: 6px 12px; 
+                        border-radius: 20px; 
+                        font-size: 0.65rem; 
+                        font-weight: 800; 
+                        letter-spacing: 0.05em;
+                        ${badgeClass === 'SUCCEEDED' ? 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);' : ''}
+                        ${badgeClass === 'RUNNING' ? 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);' : ''}
+                        ${badgeClass === 'FAILED' ? 'background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);' : ''}
+                    ">${job.status.toUpperCase()}</span>
                 </td>
-                <td>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <div style="font-weight:700; color: var(--text-main); font-size: 0.9rem;">${job.keywords.map(k => typeof k === 'object' ? k.keyword : k).join(', ')}</div>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">${job.location}</div>
+                <td style="padding: 16px 12px;">
+                    <div style="color: var(--text-main); font-size: 0.8rem; font-weight: 600;">${date.split(',')[0]}</div>
+                    <div style="color: var(--text-muted); font-size: 0.7rem;">${date.split(',')[1] || ''}</div>
+                </td>
+                <td style="padding: 16px 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-weight: 800; color: var(--text-main); font-size: 0.9rem;">${count} Leads</span>
+                        <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            ${durationDisplay}
+                        </span>
+                    </div>
+                </td>
+                <td style="padding: 16px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; color: var(--text-main); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">
+                                ${job.keywords.map(k => typeof k === 'object' ? k.keyword : k).join(', ')}
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                ${job.location}
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; border-radius: 6px; box-shadow: none;">View</button>
-                            <button class="btn" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; border-radius: 6px; box-shadow: none;" onclick="event.stopPropagation(); deleteHistoryItem(${job.bulk_job_id})">Delete</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-action-view" title="View Results" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                            <button class="btn-action-delete" title="Delete Log" onclick="event.stopPropagation(); deleteHistoryItem(${job.bulk_job_id})" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.1); background: rgba(239, 68, 68, 0.05); color: #ef4444; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
                         </div>
                     </div>
                 </td>

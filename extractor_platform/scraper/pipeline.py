@@ -141,6 +141,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
             processed_cells += 1
             if processed_cells % 2 == 0:
                 kj.cells_done = processed_cells
+                kj.total_extracted = saved_count # 🎯 CRITICAL: Sync current lead count to UI
                 await kj.asave()
 
             try:
