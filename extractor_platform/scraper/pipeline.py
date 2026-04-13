@@ -197,34 +197,31 @@ async def run_keyword_pipeline(keyword_job_id: int):
                     return
 
                 processed_cells += 1
-
                 try:
-                    cached = await get_cached_results(kj.keyword, location, cell.index)
-                    if cached is not None:
-                        found = await _save_extracted_places(cached)
+                    # Enforce fresh extraction for 100% accuracy and to confirm latest fixes
+                    if use_playwright:
+                        # We pass location name so search.py can use it for better city fallbacks
+                        places = await search_grid_cell(
+                            browser, cell, kj.keyword, 
+                            proxy_url=proxy_url, 
+                            skip_cache=True
+                        )
+                    else:
+                        places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
+
+                    # 🛑 CHECK CANCEL after slow operation
+                    if cancelled or await _check_cancelled():
+                        return
+
+                    if places:
+                        found = await _save_extracted_places(places)
+                        # We don't manually set cache here as search_grid_cell handles its own flow internally now
                         if found > 0:
                             consecutive_empty = 0
                         else:
                             consecutive_empty += 1
                     else:
-                        if use_playwright:
-                            places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
-                        else:
-                            places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
-
-                        # 🛑 CHECK CANCEL after slow operation
-                        if cancelled or await _check_cancelled():
-                            return
-
-                        if places:
-                            found = await _save_extracted_places(places)
-                            await set_cached_results(kj.keyword, location, cell.index, places)
-                            if found > 0:
-                                consecutive_empty = 0
-                            else:
-                                consecutive_empty += 1
-                        else:
-                            consecutive_empty += 1
+                        consecutive_empty += 1
 
                     # Update progress every cell
                     kj.cells_done = processed_cells

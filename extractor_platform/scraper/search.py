@@ -66,7 +66,8 @@ CATEGORY_PREFIXES = re.compile(
     re.IGNORECASE
 )
 
-PLUS_CODE_PATTERN = re.compile(r'^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,4}')
+# Matches patterns like 24H5+CMP or 24H5+CMP Bhilwara
+PLUS_CODE_PATTERN = re.compile(r'[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,4}', re.IGNORECASE)
 
 
 def clean_text(text: str) -> str:
@@ -92,8 +93,8 @@ def clean_address(text: str) -> str:
 
 
 def is_plus_code(text: str) -> bool:
-    """Check if text is a Google Plus Code (junk for our purposes)."""
-    return bool(PLUS_CODE_PATTERN.match(text.strip()))
+    """Check if text contains a Google Plus Code."""
+    return bool(PLUS_CODE_PATTERN.search(text.strip()))
 
 
 def extract_city_from_address(address: str, fallback_city: str = "") -> str:
@@ -145,9 +146,9 @@ class GoogleDetailsExtractor:
 
             # 2. CATEGORY
             category = await self._find_text(page, [
+                'button.DkEaL',
                 'button[jsaction*="category"]',
                 '.DkEaL',
-                'button.DkEaL',
             ])
 
             # 3. ADDRESS — data-item-id="address" is rock-stable
@@ -157,7 +158,8 @@ class GoogleDetailsExtractor:
                 if await addr_btn.count() > 0:
                     address = (await addr_btn.get_attribute('aria-label') or "").replace("Address: ", "").strip()
                     if not address:
-                        address = (await addr_btn.inner_text(timeout=500)).strip()
+                        inner = (await addr_btn.inner_text(timeout=500)).strip()
+                        if inner: address = inner
             except:
                 pass
             if not address:
@@ -169,11 +171,17 @@ class GoogleDetailsExtractor:
             # 4. PHONE — data-item-id="phone:tel:" is the gold standard
             phone = ""
             try:
-                phone_btn = page.locator('button[data-item-id^="phone:tel:"]').first
+                phone_btn = page.locator('button[data-item-id^="phone:tel:"], a[data-item-id^="phone:tel:"]').first
                 if await phone_btn.count() > 0:
                     phone = (await phone_btn.get_attribute('data-item-id') or "").replace("phone:tel:", "").strip()
                     if not phone:
                         phone = (await phone_btn.get_attribute('aria-label') or "").replace("Phone: ", "").strip()
+                
+                if not phone:
+                    # Generic phone locator
+                    p_el = page.locator('[data-item-id^="phone:tel:"]').first
+                    if await p_el.count() > 0:
+                        phone = (await p_el.get_attribute('data-item-id') or "").replace("phone:tel:", "").strip()
             except:
                 pass
             if not phone:
@@ -187,18 +195,17 @@ class GoogleDetailsExtractor:
             # 5. WEBSITE — a[data-item-id="authority"] href is most reliable
             website = ""
             try:
-                web_el = page.locator('a[data-item-id="authority"]').first
+                web_el = page.locator('a[data-item-id="authority"], button[data-item-id="authority"]').first
                 if await web_el.count() > 0:
-                    website = await web_el.get_attribute('href') or ""
+                    website = await web_el.get_attribute('href') or await web_el.get_attribute('aria-label') or ""
+                
+                if not website:
+                    # Generic website search
+                    w_el = page.locator('[data-item-id="authority"]').first
+                    if await w_el.count() > 0:
+                        website = await w_el.get_attribute('href') or await w_el.get_attribute('aria-label') or ""
             except:
                 pass
-            if not website:
-                try:
-                    web_el2 = page.locator('a[aria-label*="Website"]').first
-                    if await web_el2.count() > 0:
-                        website = await web_el2.get_attribute('href') or ""
-                except:
-                    pass
 
             # 6. RATING
             rating = ""
@@ -222,13 +229,14 @@ class GoogleDetailsExtractor:
             # 7. REVIEW COUNT
             review_count = ""
             try:
-                # The count is usually in a span with aria-label like "(123)"
-                rev_el = page.locator('button[jsaction*="reviews"] span[aria-label*="reviews"]').first
+                # The count is often in button.HHV0fe
+                rev_el = page.locator('button.HHV0fe, button[jsaction*="reviews"] span[aria-label*="reviews"]').first
                 if await rev_el.count() > 0:
-                    raw = await rev_el.get_attribute('aria-label') or ""
+                    raw = await rev_el.get_attribute('aria-label') or await rev_el.inner_text() or ""
                     r_match = re.search(r'([\d,]+)', raw)
                     if r_match:
                         review_count = r_match.group(1).replace(',', '')
+                
                 if not review_count:
                     # Fallback to general span search
                     rev_span = page.locator('span[aria-label*="reviews"]').first
@@ -290,9 +298,9 @@ async def extract_single_page(page, cell):
 
 
 # ─── MAIN SEARCH FUNCTION ─────────────────────────────────────────────
-async def search_grid_cell(browser, cell, keyword, proxy_url=None):
+async def search_grid_cell(browser, cell, keyword, proxy_url=None, skip_cache=True):
     """
-    VERSION 2.0 — DETAIL-FIRST EXTRACTION
+    VERSION 2.1 — STABLE SELECTORS & CACHE-BUSTER
     
     Strategy:
     1. Navigate to search results for this grid cell
@@ -335,6 +343,13 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
             await route.continue_()
 
     await context.route("**/*", block_waste)
+
+    from .cache import get_cached_results
+    # ── Check Cache ──
+    if not skip_cache:
+        cached = await get_cached_results(keyword, getattr(cell, 'location_name', 'Unknown'), cell.index)
+        if cached:
+            return cached
 
     from .manager import browser_manager
     page = await browser_manager.acquire_page(context)
