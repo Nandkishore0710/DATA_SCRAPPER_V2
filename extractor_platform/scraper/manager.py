@@ -15,7 +15,7 @@ class BrowserManager:
     _browser = None
     _playwright = None
     _lock = asyncio.Lock()
-    _semaphore = asyncio.Semaphore(10) # Global max concurrent pages across ALL users
+    _semaphore = asyncio.Semaphore(4) # 🛡️ SAFETY LOCK: Global max 4 browsers across ALL users to prevent CPU meltdown
 
     def __new__(cls):
         if cls._instance is None:
@@ -35,6 +35,13 @@ class BrowserManager:
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--js-flags="--max-old-space-size=512"',
+                        '--disable-canvas-aa',
+                        '--disable-2d-canvas-clip-aa',
+                        '--disable-gl-drawing-for-tests',
+                        '--disable-single-click-autofill',
+                        '--disable-infobars',
+                        '--no-pings',
+                        '--mute-audio',
                         '--disable-background-networking',
                         '--disable-background-timer-throttling',
                         '--disable-backgrounding-occluded-windows',

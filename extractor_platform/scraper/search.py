@@ -139,7 +139,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
     # 🏎️ ULTRA-SLIM: Block all non-essential resources to kill CPU spikes
     async def block_waste(route):
-        bad_types = ['image', 'stylesheet', 'font', 'media', 'other', 'manifest', 'texttrack', 'object', 'imageset']
+        bad_types = ['image', 'media', 'other', 'manifest', 'texttrack', 'object', 'imageset']
         if route.request.resource_type in bad_types:
             await route.abort()
         elif any(x in route.request.url.lower() for x in ['google-analytics', 'doubleclick', 'facebook', 'analytics', 'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google']):

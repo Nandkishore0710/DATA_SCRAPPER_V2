@@ -16,9 +16,7 @@ log = structlog.get_logger()
 
 # Global config
 JOB_TIMEOUT_SECONDS = 7200 
-# Global config
-JOB_TIMEOUT_SECONDS = 7200 
-CONCURRENCY = 2  # SPEED BOOST: Dual-core safe optimization
+CONCURRENCY = 4  # 🚀 PRO SPEED: Optimized for 4vCPU VPS
 
 async def run_keyword_pipeline(keyword_job_id: int):
     """
