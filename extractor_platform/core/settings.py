@@ -4,7 +4,8 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=True, cast=bool)
+# DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = True # 🚨 FORCED DEBUG FOR TROUBLESHOOTING
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,scraper.7shouters.com,168.144.78.131').split(',')
 
 # Identity & Redirection Fixes

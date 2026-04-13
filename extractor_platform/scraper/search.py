@@ -18,7 +18,7 @@ except ImportError:
 from fake_useragent import UserAgent
 
 ua = UserAgent()
-from scraper.cache import get_cached_results, set_cached_results
+from .cache import get_cached_results, set_cached_results
 
 log = structlog.get_logger()
 

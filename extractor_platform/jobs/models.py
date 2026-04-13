@@ -214,14 +214,17 @@ class Package(models.Model):
 
     @property
     def grid_strategies_list(self):
+        if not self.grid_strategies: return []
         return [s.strip() for s in self.grid_strategies.split(',') if s.strip()]
 
     @property
     def allowed_search_types_list(self):
+        if not self.allowed_search_types: return []
         return [t.strip() for t in self.allowed_search_types.split(',') if t.strip()]
 
     @property
     def features_list(self):
+        if not self.features: return []
         return [f.strip() for f in self.features.split(',') if f.strip()]
 
 class ServerPressure(models.Model):
