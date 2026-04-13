@@ -1368,14 +1368,14 @@ async function renderJobs(allJobs) {
     // Detect if we are on the main scraper/dashboard view
     const isDashboard = runsListContent && runsListContent.style.display !== 'none';
 
-    // 1. Handle Recent Scans Cards (Top 3)
+    // 1. Handle Recent Scans Cards (Top 12 Slider)
     if (recentContainer) {
         if (isDashboard && jobs.length > 0) {
-            recentContainer.style.display = 'grid';
-            const top3 = jobs.slice(0, 3);
+            recentContainer.style.display = 'flex'; // Use flex for slider
+            const top12 = jobs.slice(0, 12);
             let cardsHtml = '';
             
-            top3.forEach(job => {
+            top12.forEach(job => {
                 let badgeClass = 'RUNNING';
                 if (job.status === 'completed') badgeClass = 'SUCCEEDED';
                 if (job.status === 'failed') badgeClass = 'FAILED';
@@ -1458,7 +1458,8 @@ async function renderJobs(allJobs) {
                 const staticDuration = jobDurationText(job);
 
                 cardsHtml += `
-                <div class="panel" style="padding:18px; margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between; border:1px solid var(--border); background:var(--card-bg); position:relative; height:380px; width:100%; transition: var(--transition); overflow: hidden;">
+                <div class="recent-card-wrapper">
+                    <div class="panel premium-border" style="padding:18px; margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between; background:var(--card-bg); position:relative; height:380px; transition: var(--transition); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
                     <button onclick="deleteJob(${job.bulk_job_id})" style="position:absolute; top:14px; right:14px; background:var(--bg-color); border:1px solid var(--border-light); color:var(--text-light); cursor:pointer; padding:6px; border-radius:8px; transition:var(--transition); z-index:10;" onmouseover="this.style.color='var(--danger)'; this.style.background='rgba(239, 68, 68, 0.1)';" onmouseout="this.style.color='var(--text-light)'; this.style.background='var(--bg-color)';">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
@@ -1508,21 +1509,17 @@ async function renderJobs(allJobs) {
             recentContainer.innerHTML = cardsHtml;
             
             // Re-start timers
-            top3.forEach(job => {
-                const kj = (job.keywords && job.keywords.length > 0) ? job.keywords[0] : null;
-                const staticDuration = jobDurationText(job);
-                if (staticDuration === null) {
-                    const cardTimerId = `card-timer-${job.bulk_job_id}`;
-                    let totalDone = 0;
-                    let totalCellsSum = 0;
-                    if (job.keywords && job.keywords.length > 0) {
-                        job.keywords.forEach(kj => {
-                            totalDone += (kj.cells_done || 0);
-                            totalCellsSum += (kj.total_cells || 0);
-                        });
-                    }
-                    setTimeout(() => startLiveTimer(cardTimerId, job.created_at, totalDone, totalCellsSum), 0);
+            top12.forEach(job => {
+                const cardTimerId = `card-timer-${job.bulk_job_id}`;
+                let totalDone = 0;
+                let totalCellsSum = 0;
+                if (job.keywords && job.keywords.length > 0) {
+                    job.keywords.forEach(kj => {
+                        totalDone += (kj.cells_done || 0);
+                        totalCellsSum += (kj.total_cells || 0);
+                    });
                 }
+                setTimeout(() => startLiveTimer(cardTimerId, job.created_at, totalDone, totalCellsSum), 0);
             });
         } else {
             recentContainer.innerHTML = '';

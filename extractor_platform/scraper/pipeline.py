@@ -73,6 +73,12 @@ async def run_keyword_pipeline(keyword_job_id: int):
                 pid = p.get('place_id')
                 if not pid or pid in seen_fingerprints: continue
                 
+                # Double-check database to prevent duplicates across different cells/phases
+                exists = await Place.objects.filter(keyword_job_id=keyword_job_id, place_id=pid).aexists()
+                if exists:
+                    seen_fingerprints.add(pid)
+                    continue
+
                 seen_fingerprints.add(pid)
                 new_objs.append(Place(keyword_job_id=keyword_job_id, **p))
             
