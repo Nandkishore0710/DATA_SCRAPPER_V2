@@ -8,14 +8,15 @@ import structlog
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from jobs.models import BulkJob, KeywordJob, Place, MyUser
+from jobs.models import BulkJob, KeywordJob, Place
+from django.contrib.auth.models import User
 from scraper.pipeline import run_keyword_pipeline
 
 log = structlog.get_logger()
 
 async def verify():
     # 1. Get or create a test user
-    user, _ = await MyUser.objects.aget_or_create(username='testadmin', email='test@example.com')
+    user, _ = await User.objects.aget_or_create(username='testadmin', email='test@example.com')
     
     # 2. Setup Test Job (Coffee Shops in Mumbai)
     location = "Mumbai"
