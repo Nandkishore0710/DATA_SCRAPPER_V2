@@ -22,6 +22,10 @@ async def verify():
     # 1. Get or create a test user
     user, _ = await User.objects.aget_or_create(username='testadmin', email='test@example.com')
     
+    # 🎯 CACHE CLEAR: Ensure we get a fresh, accurate boundary for this test
+    from jobs.models import LocationCache
+    await LocationCache.objects.filter(query__icontains="Mumbai").adelete()
+    
     # 2. Setup Test Job (Mumbai, India)
     location = "Mumbai, India"
     keyword = "Coffee Shops"

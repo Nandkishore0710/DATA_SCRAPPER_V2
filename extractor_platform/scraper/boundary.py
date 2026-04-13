@@ -30,54 +30,82 @@ async def get_city_boundary(location: str) -> dict:
     url = "https://nominatim.openstreetmap.org/search"
     headers = {'User-Agent': 'ExtractorPlatform/1.0'}
     
-    variants = [f"{location} city centre", location, f"{location} city", f"{location} district"]
+    # 🎯 IMPROVED STRATEGY: Explicitly look for administrative/settlement boundaries
+    # We add 'city' or 'town' hints to the variants to avoid restaurants/shops
+    variants = [location, f"{location} city", f"{location} town", f"{location} region"]
     best_result = None
-    min_area = float('inf')
-
+    
     async with httpx.AsyncClient(timeout=10) as client:
         for q in variants:
             try:
-                params = {'q': q, 'format': 'json', 'limit': 1}
+                # Use 'featuretype=settlement' to filter out restaurants/shops
+                params = {
+                    'q': q, 
+                    'format': 'json', 
+                    'limit': 3, 
+                    'addressdetails': 1,
+                    'featuretype': 'settlement' 
+                }
                 response = await client.get(url, params=params, headers=headers)
                 data = response.json()
                 
-                if data:
-                    res = data[0]
-                    bbox = res['boundingbox']
+                if not data:
+                    # Fallback without featuretype if no settlement found
+                    params.pop('featuretype')
+                    response = await client.get(url, params=params, headers=headers)
+                    data = response.json()
+
+                for res in data:
+                    # HEURISTIC: Skip if it's too small (representative points of businesses)
+                    # A city/town usually has a significant bounding box
+                    bbox = [float(x) for x in res['boundingbox']]
+                    area = (bbox[1] - bbox[0]) * (bbox[3] - bbox[2])
+                    
+                    # If the area is suspiciously small (like a building), skip unless it's our only hope
+                    if area < 0.0001 and len(data) > 1:
+                        continue
+                    
                     display_name = res.get('display_name', '').lower()
+                    place_type = res.get('type', '').lower()
                     
-                    # Rough area calculation
-                    area = (float(bbox[1]) - float(bbox[0])) * (float(bbox[3]) - float(bbox[2]))
-                    if area == 0: area = 0.0001
-                    
-                    # HEURISTIC: Prioritize exact 'city' or 'town' matches first
-                    is_city_match = any(x in display_name for x in ['city', 'town', 'municipality', 'centre'])
-                    
-                    if not best_result or (is_city_match and area < min_area) or (not is_city_match and area < min_area):
-                        min_area = area
+                    # Rank results: City/Town/Administrative > Everything else
+                    is_high_quality = any(x in place_type for x in ['city', 'town', 'administrative', 'postcode']) or \
+                                      any(x in display_name for x in ['city', 'town', 'municipality'])
+
+                    if not best_result or (is_high_quality and not best_result['is_high_quality']):
                         best_result = {
-                            'min_lat': float(bbox[0]),
-                            'max_lat': float(bbox[1]),
-                            'min_lng': float(bbox[2]),
-                            'max_lng': float(bbox[3]),
+                            'min_lat': bbox[0],
+                            'max_lat': bbox[1],
+                            'min_lng': bbox[2],
+                            'max_lng': bbox[3],
                             'display_name': res['display_name'],
+                            'is_high_quality': is_high_quality,
                             'area': area
                         }
-                        # If we found a high-quality city match, we can stop early
-                        if is_city_match: break 
-            except Exception:
+                        # If it's a high quality city match, we stop
+                        if is_high_quality: break
+                
+                if best_result and best_result['is_high_quality']:
+                    break
+
+            except Exception as e:
+                log.debug("boundary.variant_failed", query=q, error=str(e))
                 continue
 
     if not best_result:
-        raise Exception(f"Location not found: {location}")
+        raise Exception(f"Location not found: {location}. Please be more specific (e.g. 'City, Country')")
 
     # Calculate center and radius
     center_lat = (best_result['min_lat'] + best_result['max_lat']) / 2
     center_lng = (best_result['min_lng'] + best_result['max_lng']) / 2
     
+    # Calculate radius based on the bounding box size
     lat_dist = abs(best_result['max_lat'] - best_result['min_lat']) * 111000
     lng_dist = abs(best_result['max_lng'] - best_result['min_lng']) * 111000 * math.cos(math.radians(center_lat))
+    
+    # Ensure a reasonable minimum search radius (5km) and maximum (25km)
     radius_meters = max(int(math.sqrt(lat_dist**2 + lng_dist**2) / 2 * 1.2), 5000)
+    radius_meters = min(radius_meters, 25000)
     
     # 2. SAVE TO CACHE
     await LocationCache.objects.acreate(
