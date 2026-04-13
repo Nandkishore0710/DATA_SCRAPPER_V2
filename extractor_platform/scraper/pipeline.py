@@ -130,13 +130,6 @@ async def run_keyword_pipeline(keyword_job_id: int):
                             seen_names.add(name_key)
                         continue
 
-                # Also check by name in database
-                if name_key:
-                    # Check if a business with the same normalized name already exists
-                    existing = await Place.objects.filter(
-                        keyword_job_id=keyword_job_id
-                    ).aexists()  # We'll check in-memory, DB name check is complex
-                    
                 seen_fingerprints.add(pid)
                 if name_key:
                     seen_names.add(name_key)

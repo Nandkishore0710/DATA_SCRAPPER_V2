@@ -55,6 +55,10 @@ def _parse_json_response(raw_text: str) -> list:
             except json.JSONDecodeError:
                 pos += 1
 
+    def is_business_obj(item):
+        """Check if a list item looks like a Google Maps business record."""
+        if not isinstance(item, list):
+            return False
         # Check for a list representing the business. 
         # Typically index 1 contains the name, and index 14 contains the address.
         if len(item) > 1 and isinstance(item[1], str) and len(item) > 14:
@@ -62,6 +66,7 @@ def _parse_json_response(raw_text: str) -> list:
             if isinstance(item[2], list) and len(item[2]) > 7:
                  return True
         return False
+
 
     def recursive_find_businesses(obj):
         """Recursively traverses the JSON structure to find business objects."""
