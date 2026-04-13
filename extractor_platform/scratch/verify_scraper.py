@@ -27,15 +27,15 @@ async def verify():
     await LocationCache.objects.filter(query__icontains="Bhilwara").adelete()
     await ScraperCache.objects.filter(location__icontains="Bhilwara", keyword__icontains="Gym").adelete()
     
-    # 2. Setup Test Job (Bhilwara, Rajasthan, India)
-    location = "Bhilwara, Rajasthan, India"
+    # 2. Setup Test Job (Bhilwara City)
+    location = "Bhilwara city"
     keyword = "Gym"
     
     bj = await BulkJob.objects.acreate(
         user=user,
         location=location,
         search_type='city',
-        grid_size=1, # Small grid for fast test
+        grid_size=3, # 3x3 Grid (9 cells) ensures we hit the actual city area
         status='pending'
     )
     
