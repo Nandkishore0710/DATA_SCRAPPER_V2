@@ -62,7 +62,8 @@ def build_grid(boundary: dict, grid_size: int = 5) -> List[GridCell]:
                 # 120 is roughly the world span. 
                 # This formula matches 0.05 to 14 and 1.0 to 10
                 best_zoom = int(round(11 - math.log2(lat_step)))
-                best_zoom = max(min(best_zoom, 16), 4) # Hard constraints
+                # 🎯 PRECISION: Never go below 14z for urban searches to ensure the results feed exists
+                best_zoom = max(min(best_zoom, 16), 14) 
 
             cells.append(GridCell(
                 min_lat=cell_min_lat,
