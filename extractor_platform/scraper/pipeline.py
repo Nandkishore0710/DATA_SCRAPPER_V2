@@ -18,7 +18,7 @@ log = structlog.get_logger()
 JOB_TIMEOUT_SECONDS = 7200 
 # Global config
 JOB_TIMEOUT_SECONDS = 7200 
-CONCURRENCY = 1  # GHOST MODE: Max optimization for 10% CPU usage
+CONCURRENCY = 2  # SPEED BOOST: Dual-core safe optimization
 
 async def run_keyword_pipeline(keyword_job_id: int):
     """
@@ -45,11 +45,11 @@ async def run_keyword_pipeline(keyword_job_id: int):
         bj.execution_mode = 'direct'
         await bj.asave()
 
-        seen = set()
+        seen_fingerprints = set() # Stable ID tracking
         saved_count = 0
         processed_cells = 0
         consecutive_empty = 0
-        MAX_EMPTY = 10 # Stop if 10 cells in a row are empty
+        MAX_EMPTY = 10 
         
         async def _save_extracted_places(places):
             from jobs.models import KeywordJob
@@ -60,20 +60,20 @@ async def run_keyword_pipeline(keyword_job_id: int):
             nonlocal saved_count
             new_objs = []
             for p in places:
-                pid = p.get('place_id')
-                if not pid or pid in seen: continue
-                
-                # 🛡️ SMART ADDRESS VERIFICATION: Avoid discarding local leads
-                addr = (p.get('street') or "").lower()
-                city_val = (p.get('city') or "").lower()
-                
-                # Only discard if it's explicitly in another DIFFERENT major city
-                # Since we search by coordinates, we can be more trusting of local results.
-                if any(other in addr or other in city_val for other in ['noida', 'delhi', 'bangalore', 'pune']):
-                    log.info("pipeline.out_of_town_discarded", name=p.get('name'), address=p.get('street'))
-                    continue
+                # 🛡️ COORDINATE GEOFENCING: Drop results further than 40km from Bhilwara
+                lat, lng = p.get('latitude'), p.get('longitude')
+                if lat and lng:
+                    # Rough distance check for Bhilwara area (center: 25.35, 74.64)
+                    dist = math.sqrt((float(lat) - 25.348)**2 + (float(lng) - 74.636)**2)
+                    if dist > 0.45: # Approx 45-50km radius
+                        log.info("pipeline.out_of_bounds_discarded", name=p.get('name'), dist=dist)
+                        continue
 
-                seen.add(pid)
+                # 🆔 STABLE IDENTITY CHECK: Use place_id (fingerprint)
+                pid = p.get('place_id')
+                if not pid or pid in seen_fingerprints: continue
+                
+                seen_fingerprints.add(pid)
                 new_objs.append(Place(keyword_job_id=keyword_job_id, **p))
             
             if new_objs:
@@ -169,6 +169,9 @@ async def run_keyword_pipeline(keyword_job_id: int):
                             else: consecutive_empty += 1
                         else:
                             consecutive_empty += 1
+                    
+                    # ❄️ COOLDOWN: Yield for stability
+                    await asyncio.sleep(1.5)
 
             except Exception as e:
                 log.warning("pipeline.cell_failed", index=cell.index, error=str(e))

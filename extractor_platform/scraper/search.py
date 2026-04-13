@@ -291,7 +291,16 @@ async def extract_from_cards(page, cell) -> list:
         try:
             label = await card.get_attribute('aria-label') or ""
             text = await card.inner_text() or ""
+            href = await card.get_attribute('href') or ""
             
+            # 🗺️ COORDINATE EXTRACTION: Pull from the Maps URL
+            # Format: .../@25.348,74.636,14z/...
+            lat, lng = None, None
+            coord_match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
+            if coord_match:
+                lat = float(coord_match.group(1))
+                lng = float(coord_match.group(2))
+
             if any(ad_marker in label.lower() or ad_marker in text.lower() for ad_marker in ['ad ', 'sponsored']):
                 continue
 
@@ -340,8 +349,13 @@ async def extract_from_cards(page, cell) -> list:
                 elif len(line) > 10 and (any(x in line.lower() for x in ['rd', 'st', 'ave', 'lane', 'mumbai', 'india', 'pincode']) or re.search(r'\d{6}', line)):
                     if not address: address = line
 
+            # 🆔 STABLE FINGERPRINT: Prevent duplicates across search cells
+            # We use a combined name + address key to ensure identity stability
+            address_key = address.replace(' ', '').lower()[:20] if address else "no-addr"
+            stable_id = f"{name.lower().replace(' ', '')}_{address_key}"
+
             places.append({
-                'place_id': f"{name}_{cell.index}_{i}",
+                'place_id': stable_id,
                 'name': name,
                 'category': category,
                 'street': address,
@@ -350,7 +364,9 @@ async def extract_from_cards(page, cell) -> list:
                 'website': website,
                 'rating': rating,
                 'review_count': review_count,
-                'maps_url': await card.get_attribute('href') or page.url
+                'maps_url': href or page.url,
+                'latitude': lat,
+                'longitude': lng
             })
         except Exception as e:
             log.debug("scraper.card_skipped", error=str(e))
