@@ -22,13 +22,14 @@ async def verify():
     # 1. Get or create a test user
     user, _ = await User.objects.aget_or_create(username='testadmin', email='test@example.com')
     
-    # 🎯 CACHE CLEAR: Ensure we get a fresh, accurate boundary for this test
-    from jobs.models import LocationCache
-    await LocationCache.objects.filter(query__icontains="Mumbai").adelete()
+    # 🎯 CACHE CLEAR: Ensure we get a fresh, accurate boundary and results for this test
+    from jobs.models import LocationCache, ScraperCache
+    await LocationCache.objects.filter(query__icontains="Bhilwara").adelete()
+    await ScraperCache.objects.filter(location__icontains="Bhilwara", keyword__icontains="Gym").adelete()
     
-    # 2. Setup Test Job (Mumbai, India)
-    location = "Mumbai, India"
-    keyword = "Coffee Shops"
+    # 2. Setup Test Job (Bhilwara, Rajasthan, India)
+    location = "Bhilwara, Rajasthan, India"
+    keyword = "Gym"
     
     bj = await BulkJob.objects.acreate(
         user=user,
