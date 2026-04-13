@@ -1,52 +1,79 @@
 <div class="content-area" id="runs-list-content">
-    <div class="content-header" style="margin-bottom: 32px; background: linear-gradient(135deg, var(--accent-light), transparent); padding: 32px; border-radius: 16px; border: 1px solid var(--border); position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -50%; left: -10%; width: 300px; height: 300px; background: var(--accent); filter: blur(100px); opacity: 0.3; pointer-events: none;"></div>
+    <div class="content-header"
+        style="margin-bottom: 32px; background: linear-gradient(135deg, var(--accent-light), transparent); padding: 32px; border-radius: 16px; border: 1px solid var(--border); position: relative; overflow: hidden;">
+        <div
+            style="position: absolute; top: -50%; left: -10%; width: 300px; height: 300px; background: var(--accent); filter: blur(100px); opacity: 0.3; pointer-events: none;">
+        </div>
         <div style="position: relative; z-index: 1;">
-            <h1 style="font-size: 2.2rem; font-weight: 900; letter-spacing: -0.04em; margin-bottom: 8px;">Data Extraction Protocol</h1>
-            <p style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">Deploy remote scraping nodes to gather geographical intel.</p>
+            <h1 style="font-size: 2.2rem; font-weight: 900; letter-spacing: -0.04em; margin-bottom: 8px;">Data
+                Extraction Protocol</h1>
+            <p style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">Deploy remote scraping nodes to
+                gather geographical intel.</p>
         </div>
     </div>
 
-    <div class="panel" style="padding: 32px; border-radius: 16px; background: var(--card-bg); border: 1px solid var(--border); box-shadow: var(--shadow);">
+    <div class="panel"
+        style="padding: 32px; border-radius: 16px; background: var(--card-bg); border: 1px solid var(--border); box-shadow: var(--shadow);">
         <div style="margin-bottom: 32px; display: flex; align-items: center; gap: 12px;">
             <div style="width: 4px; height: 24px; background: var(--accent); border-radius: 4px;"></div>
             <div>
-                <h2 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">Initialize Deployment</h2>
-                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0;">Define targeting vectors and operation parameters.</p>
+                <h2 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">Initialize
+                    Deployment</h2>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0;">Define targeting vectors and
+                    operation parameters.</p>
             </div>
         </div>
 
         <form id="search-form">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; align-items: start;">
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; align-items: start;">
                 <div class="form-group">
-                    <label id="keyword-label" style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Keywords</label>
+                    <label id="keyword-label"
+                        style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Keywords</label>
                     <div id="keyword-list-container" style="display: flex; flex-direction: column; gap: 12px;">
                         <div id="keyword-input-rows" style="display: flex; flex-direction: column; gap: 10px;">
                             <!-- Default Row 1 -->
                             <div class="keyword-row" style="display: flex; gap: 8px; align-items: center;">
-                                <div style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
-                                    <input type="text" class="keyword-input-field" placeholder="e.g. Coffee Shops" 
+                                <div
+                                    style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
+                                    <input type="text" class="keyword-input-field" placeholder="e.g. Coffee Shops"
                                         style="border: none; background: transparent; width: 100%; height: 100%; outline: none !important; box-shadow: none !important; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-main);"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault();addKeywordRow();}">
                                 </div>
-                                <button type="button" class="keyword-delete-btn" onclick="this.parentElement.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; opacity: 0.6; transition: 0.2s;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <button type="button" class="keyword-delete-btn" onclick="this.parentElement.remove()"
+                                    style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; opacity: 0.6; transition: 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
                                 </button>
                             </div>
                             <!-- Default Row 2 -->
                             <div class="keyword-row" style="display: flex; gap: 8px; align-items: center;">
-                                <div style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
-                                    <input type="text" class="keyword-input-field" placeholder="e.g. Restaurants" 
+                                <div
+                                    style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
+                                    <input type="text" class="keyword-input-field" placeholder="e.g. Restaurants"
                                         style="border: none; background: transparent; width: 100%; height: 100%; outline: none !important; box-shadow: none !important; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-main);"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault();addKeywordRow();}">
                                 </div>
-                                <button type="button" class="keyword-delete-btn" onclick="this.parentElement.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; opacity: 0.6; transition: 0.2s;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <button type="button" class="keyword-delete-btn" onclick="this.parentElement.remove()"
+                                    style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; opacity: 0.6; transition: 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
                                 </button>
                             </div>
                         </div>
-                        <button type="button" id="add-keyword-btn" style="width: fit-content; padding: 6px 14px; background: var(--bg-color); border: 1.5px dashed var(--border); border-radius: 8px; color: var(--accent); font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition);">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <button type="button" id="add-keyword-btn"
+                            style="width: fit-content; padding: 6px 14px; background: var(--bg-color); border: 1.5px dashed var(--border); border-radius: 8px; color: var(--accent); font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="3">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
                             Add another keyword
                         </button>
                     </div>
@@ -56,56 +83,73 @@
                 </div>
 
                 <div class="form-group" id="location-group">
-                    <label id="location-label" style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Location Target</label>
+                    <label id="location-label"
+                        style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Location
+                        Target</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <div style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
-                            <input type="text" id="location" placeholder="e.g. Mumbai" required 
-                                oninput="this.value=this.value.replace(/[^a-zA-Z0-9 \-\&]/g,'')" 
-                                autocomplete="off"
+                        <div
+                            style="flex: 1; height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center; transition: var(--transition);">
+                            <input type="text" id="location" placeholder="e.g. Mumbai" required
+                                oninput="this.value=this.value.replace(/[^a-zA-Z0-9 \-\&]/g,'')" autocomplete="off"
                                 style="border: none; background: transparent; width: 100%; height: 100%; outline: none !important; box-shadow: none !important; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-main);">
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group" id="grid-size-group" style="display: none;">
-                    <label style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Grid Size (NxN)</label>
-                    <div style="height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center;">
+                    <label
+                        style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Grid
+                        Size (NxN)</label>
+                    <div
+                        style="height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); padding: 0 16px; display: flex; align-items: center;">
                         <input type="number" id="grid_size" value="8" min="1" max="25"
                             style="border: none; background: transparent; width: 100%; height: 100%; outline: none !important; box-shadow: none !important; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-main);">
                     </div>
-                    <p style="font-size: 0.6rem; color: var(--text-muted); margin-top: 4px;">Higher size = more leads but slower.</p>
+                    <p style="font-size: 0.6rem; color: var(--text-muted); margin-top: 4px;">Higher size = more leads
+                        but slower.</p>
                 </div>
 
                 <div class="form-group strategy-wrapper" style="position: relative;">
-                    <label style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Strategy</label>
+                    <label
+                        style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: block; letter-spacing: 0.05em;">Strategy</label>
                     <input type="hidden" id="strategy" name="strategy" value="fast">
-                    <div id="strategy-trigger" onclick="toggleStrategyDropdown(event)" style="height: 44px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 0 16px; transition: var(--transition);">
-                        <span id="strategy-label" style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Fast Search</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    <div id="strategy-trigger" onclick="toggleStrategyDropdown(event)"
+                        style="height: 44px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 0 16px; transition: var(--transition);">
+                        <span id="strategy-label"
+                            style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Fast Search</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
                     </div>
-                    <div id="strategy-dropdown" style="visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 4px); right: 0; width: 100%; background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px; z-index: 1000; box-shadow: var(--shadow); transition: var(--transition); transform: translateY(-10px);">
-                        <div class="strategy-option selected" data-value="fast" onclick="selectStrategy(this)" style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="strategy-dropdown"
+                        style="visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 4px); right: 0; width: 100%; background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px; z-index: 1000; box-shadow: var(--shadow); transition: var(--transition); transform: translateY(-10px);">
+                        <div class="strategy-option selected" data-value="fast" onclick="selectStrategy(this)"
+                            style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                             <div style="display: flex; flex-direction: column;">
                                 <span class="strategy-option-name" style="font-weight: 700;">Fast Search</span>
                                 <span style="font-size: 0.75rem; color: var(--text-light);">12x12 (144 cells)</span>
                             </div>
                             <span class="strategy-check" style="font-weight: 800; color: var(--accent);">✓</span>
                         </div>
-                        <div class="strategy-option" data-value="detailed" onclick="selectStrategy(this)" style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
+                        <div class="strategy-option" data-value="detailed" onclick="selectStrategy(this)"
+                            style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
                             <div style="display: flex; flex-direction: column;">
                                 <span class="strategy-option-name" style="font-weight: 600;">Detailed Grid</span>
                                 <span style="font-size: 0.75rem; color: var(--text-light);">15x15 (225 cells)</span>
                             </div>
                             <span class="strategy-check"></span>
                         </div>
-                        <div class="strategy-option" data-value="deep" onclick="selectStrategy(this)" style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
+                        <div class="strategy-option" data-value="deep" onclick="selectStrategy(this)"
+                            style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
                             <div style="display: flex; flex-direction: column;">
                                 <span class="strategy-option-name" style="font-weight: 600;">Deep extraction</span>
                                 <span style="font-size: 0.75rem; color: var(--text-light);">20x20 (400 cells)</span>
                             </div>
                             <span class="strategy-check"></span>
                         </div>
-                        <div class="strategy-option" data-value="ultra" onclick="selectStrategy(this)" style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
+                        <div class="strategy-option" data-value="ultra" onclick="selectStrategy(this)"
+                            style="padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
                             <div style="display: flex; flex-direction: column;">
                                 <span class="strategy-option-name" style="font-weight: 600;">Ultra discovery</span>
                                 <span style="font-size: 0.75rem; color: var(--text-light);">25x25 (625 cells)</span>
@@ -116,13 +160,22 @@
                 </div>
             </div>
 
-            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <div id="search-mode-container" style="background: var(--bg-color); padding: 4px; border-radius: 8px; display: flex; border: 1px solid var(--border); gap: 4px;">
-                    <button type="button" id="mode-single" class="btn mode-btn" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;" onclick="setSearchMode('single')">Single Search</button>
-                    <button type="button" id="mode-multi" class="btn mode-btn" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;" onclick="setSearchMode('multi')">Bulk Search</button>
-                    <button type="button" id="mode-state-country" class="btn mode-btn" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;" onclick="setSearchMode('state_country')">State/Country Search</button>
+            <div
+                style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <div id="search-mode-container"
+                    style="background: var(--bg-color); padding: 4px; border-radius: 8px; display: flex; border: 1px solid var(--border); gap: 4px;">
+                    <button type="button" id="mode-single" class="btn mode-btn"
+                        style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;"
+                        onclick="setSearchMode('single')">Single Search</button>
+                    <button type="button" id="mode-multi" class="btn mode-btn"
+                        style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;"
+                        onclick="setSearchMode('multi')">Bulk Search</button>
+                    <button type="button" id="mode-state-country" class="btn mode-btn"
+                        style="padding: 6px 12px; font-size: 0.75rem; border-radius: 6px;"
+                        onclick="setSearchMode('state_country')">State/Country Search</button>
                 </div>
-                <button type="submit" id="start-btn" style="padding: 10px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: var(--transition); box-shadow: 0 4px 12px var(--accent-soft);">
+                <button type="submit" id="start-btn"
+                    style="padding: 10px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: var(--transition); box-shadow: 0 4px 12px var(--accent-soft);">
                     Launch Discovery
                 </button>
             </div>
@@ -142,23 +195,30 @@
             scrollbar-width: thin;
             scrollbar-color: var(--border) transparent;
         }
+
         #recent-scans-summary::-webkit-scrollbar {
             height: 6px;
         }
+
         #recent-scans-summary::-webkit-scrollbar-track {
             background: transparent;
         }
+
         #recent-scans-summary::-webkit-scrollbar-thumb {
             background-color: var(--border);
             border-radius: 20px;
         }
+
         .recent-card-wrapper {
-            flex: 0 0 340px; /* Fixed width for slider consistency */
+            flex: 0 0 340px;
+            /* Fixed width for slider consistency */
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+
         .recent-card-wrapper:hover {
             transform: translateY(-6px);
         }
+
         .premium-border {
             border: 1px solid rgba(255, 255, 255, 0.05) !important;
             backdrop-filter: blur(10px);
@@ -171,64 +231,93 @@
 </div>
 
 <div class="content-area" id="packages-content" style="display:none;">
-    <div class="pricing-header" style="text-align: left; margin-bottom: 24px; padding-top: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+    <div class="pricing-header"
+        style="text-align: left; margin-bottom: 24px; padding-top: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
         <h2 style="font-size: 1.4rem; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; margin: 0;">
             Pricing Plans
         </h2>
-        <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-weight: 500;">Choose a subscription protocol for your extraction needs.</p>
+        <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-weight: 500;">Choose a subscription protocol
+            for your extraction needs.</p>
     </div>
 
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:20px; padding: 10px 0 60px 0; max-width: 900px; margin: 0 auto;">
+    <div
+        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:20px; padding: 10px 0 60px 0; max-width: 900px; margin: 0 auto;">
         {% for pkg in packages %}
-        <div class="pricing-card" style="display:flex; flex-direction:column; padding:24px; border-radius: 16px; position: relative; transition: all 0.3s ease; {% if pkg.is_featured %}background: #0f172a; color: white; border: none; box-shadow: 0 4px 60px rgba(15, 23, 42, 0.2); transform: scale(1.02);{% else %}background: white; color: #1e293b; border: 1px solid #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,0.03);{% endif %}">
-            
+        <div class="pricing-card"
+            style="display:flex; flex-direction:column; padding:24px; border-radius: 16px; position: relative; transition: all 0.3s ease; {% if pkg.is_featured %}background: #0f172a; color: white; border: none; box-shadow: 0 4px 60px rgba(15, 23, 42, 0.2); transform: scale(1.02);{% else %}background: white; color: #1e293b; border: 1px solid #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,0.03);{% endif %}">
+
             {% if pkg.is_featured %}
-            <div style="position:absolute; top:16px; right:16px; background:#f97316; color:white; padding:3px 8px; border-radius:4px; font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">POPULAR</div>
+            <div
+                style="position:absolute; top:16px; right:16px; background:#f97316; color:white; padding:3px 8px; border-radius:4px; font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">
+                POPULAR</div>
             {% endif %}
 
             <!-- Icon -->
-            <div style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; {% if pkg.is_featured %}background:rgba(249,115,22,0.15);{% else %}background:#f1f5f9;{% endif %}">
+            <div
+                style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; {% if pkg.is_featured %}background:rgba(249,115,22,0.15);{% else %}background:#f1f5f9;{% endif %}">
                 {% if forloop.counter == 1 %}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
                 {% elif pkg.is_featured %}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#f97316" stroke="#f97316" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#f97316" stroke="#f97316" stroke-width="2.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
                 {% else %}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15l-2 5h4l-2-5zm0-13l-4 4h8l-4-4zM2 17l10-10 10 10-10 10L2 17z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 15l-2 5h4l-2-5zm0-13l-4 4h8l-4-4zM2 17l10-10 10 10-10 10L2 17z" />
+                </svg>
                 {% endif %}
             </div>
 
             <div data-pkg-name style="font-size: 1rem; font-weight: 800; margin-bottom: 2px;">{{ pkg.name }}</div>
-            <div data-pkg-label style="font-size: 0.72rem; font-weight: 500; color: {% if pkg.is_featured %}#94a3b8{% else %}#64748b{% endif %}; margin-bottom: 20px;">
-                {% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{% endif %}
+            <div data-pkg-label
+                style="font-size: 0.72rem; font-weight: 500; color: {% if pkg.is_featured %}#94a3b8{% else %}#64748b{% endif %}; margin-bottom: 20px;">
+                {% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{%
+                endif %}
             </div>
 
             <div style="margin-bottom: 20px; display: flex; align-items: baseline; gap: 6px;">
-                <span data-pkg-price style="font-size: 1.6rem; font-weight: 800; color: {% if pkg.is_featured %}white{% else %}#1e293b{% endif %};">{{ pkg.price }}</span>
-                <span style="font-size: 1.1rem; font-weight: 400; color: {% if pkg.is_featured %}#475569{% else %}#cbd5e1{% endif %}; text-decoration: line-through;">$99</span>
+                <span data-pkg-price
+                    style="font-size: 1.6rem; font-weight: 800; color: {% if pkg.is_featured %}white{% else %}#1e293b{% endif %};">{{
+                    pkg.price }}</span>
+                <span
+                    style="font-size: 1.1rem; font-weight: 400; color: {% if pkg.is_featured %}#475569{% else %}#cbd5e1{% endif %}; text-decoration: line-through;">$99</span>
             </div>
 
-            <button class="btn" onclick="initiatePayment('{{ pkg.id }}', '{{ pkg.name }}', '{% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{% endif %}', '{{ pkg.price }}')" style="width:100%; height:40px; border-radius: 8px; font-size:0.75rem; font-weight:700; transition: all 0.2s; cursor: pointer; display:flex; align-items:center; justify-content:center; {% if pkg.is_featured %}background:#f97316; color:white; border:none;{% else %}background:transparent; border:1px solid #e2e8f0; color:#1e293b;{% endif %} margin-bottom: 24px;">
+            <button class="btn"
+                onclick="initiatePayment('{{ pkg.id }}', '{{ pkg.name }}', '{% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{% endif %}', '{{ pkg.price }}')"
+                style="width:100%; height:40px; border-radius: 8px; font-size:0.75rem; font-weight:700; transition: all 0.2s; cursor: pointer; display:flex; align-items:center; justify-content:center; {% if pkg.is_featured %}background:#f97316; color:white; border:none;{% else %}background:transparent; border:1px solid #e2e8f0; color:#1e293b;{% endif %} margin-bottom: 24px;">
                 Buy {{ pkg.name }} License
             </button>
 
             <!-- Device Info -->
-            <div style="display:flex; align-items:center; gap:6px; font-size:0.68rem; font-weight:600; color:{% if pkg.is_featured %}white{% else %}#1e293b{% endif %}; margin-bottom:14px; border-bottom: 1px dashed {% if pkg.is_featured %}rgba(255,255,255,0.1){% else %}#f1f5f9{% endif %}; padding-bottom: 10px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <div
+                style="display:flex; align-items:center; gap:6px; font-size:0.68rem; font-weight:600; color:{% if pkg.is_featured %}white{% else %}#1e293b{% endif %}; margin-bottom:14px; border-bottom: 1px dashed {% if pkg.is_featured %}rgba(255,255,255,0.1){% else %}#f1f5f9{% endif %}; padding-bottom: 10px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
                 Quota Managed
             </div>
 
             <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
                 <li style="display:flex; align-items:center; gap:8px; font-size: 0.72rem; font-weight: 500;">
-                    <span style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
+                    <span
+                        style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
                     <span><strong>{{ pkg.lead_limit }}</strong> Leads</span>
                 </li>
                 <li style="display:flex; align-items:center; gap:8px; font-size: 0.72rem; font-weight: 500;">
-                    <span style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
+                    <span
+                        style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
                     <span><strong>{{ pkg.search_limit }}</strong> Units</span>
                 </li>
                 {% for feature in pkg.features_list %}
                 <li style="display:flex; align-items:center; gap:8px; font-size: 0.72rem; font-weight: 500;">
-                    <span style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
+                    <span
+                        style="color:{% if pkg.is_featured %}#f97316{% else %}#10b981{% endif %}; font-weight: 800;">✓</span>
                     <span>{{ feature }}</span>
                 </li>
                 {% endfor %}
@@ -245,7 +334,10 @@
     <div style="text-align: center; margin-top: 40px; color: #94a3b8; font-size: 0.85rem; padding-bottom: 80px;">
         <p>Prices in USD. Taxes may apply.</p>
         <p style="margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
             Secure payment via Razorpay.
         </p>
     </div>

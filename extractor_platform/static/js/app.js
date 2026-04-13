@@ -22,10 +22,10 @@ function addKeywordRow(arg) {
     const row = document.createElement('div');
     row.className = 'keyword-row';
     row.style.cssText = 'display: flex; gap: 8px; align-items: center; border-radius: 8px;';
-    
+
     // Cross button should be hidden in single search unless there are multiple rows
     const showDelete = (mode === 'multi');
-    
+
     row.innerHTML = `
         <div style="flex: 1; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); padding: 2px 12px; display: flex; align-items: center;">
             <input type="text" class="keyword-input-field" placeholder="e.g. Coffee Shops" value="${val}"
@@ -43,7 +43,7 @@ function addKeywordRow(arg) {
     container.appendChild(row);
     if (!val) row.querySelector('input').focus();
 }
-window.addKeywordRow = addKeywordRow; 
+window.addKeywordRow = addKeywordRow;
 
 window.toggleStrategyDropdown = function (e) {
     e.stopPropagation();
@@ -183,7 +183,7 @@ function startLiveTimer(elementId, startIso, doneCells = 0, totalCells = 0) {
     const el = document.getElementById(elementId);
     if (!el) return;
     const startMs = new Date(startIso).getTime();
-    
+
     // CAPTURE msPerCell AT THIS SNAPSHOT
     const nowMsSnapshot = Date.now();
     const elapsedSnapshot = nowMsSnapshot - startMs;
@@ -192,12 +192,12 @@ function startLiveTimer(elementId, startIso, doneCells = 0, totalCells = 0) {
 
     function tick() {
         const el2 = document.getElementById(elementId);
-        if (!el2) { 
-            clearInterval(liveTimerIntervals[elementId]); 
-            delete liveTimerIntervals[elementId]; 
-            return; 
+        if (!el2) {
+            clearInterval(liveTimerIntervals[elementId]);
+            delete liveTimerIntervals[elementId];
+            return;
         }
-        
+
         const nowMs = Date.now();
         const elapsedSecs = Math.floor((nowMs - startMs) / 1000);
         let timeText = formatDuration(elapsedSecs);
@@ -207,7 +207,7 @@ function startLiveTimer(elementId, startIso, doneCells = 0, totalCells = 0) {
             const totalExpectedMs = msPerCell * totalCells;
             const remainingMs = totalExpectedMs - (nowMs - startMs);
             let remainingSecs = Math.floor(remainingMs / 1000);
-            
+
             if (remainingSecs > 5) {
                 // ROUGH TIMING: Use coarser increments for longer durations as requested
                 let roughText = '';
@@ -224,7 +224,7 @@ function startLiveTimer(elementId, startIso, doneCells = 0, totalCells = 0) {
                 timeText += ` • ~${roughText} left`;
             }
         }
-        
+
         el2.textContent = timeText;
     }
     tick();
@@ -358,12 +358,12 @@ async function renderHistory() {
             tr.style.cssText = 'cursor: pointer; transition: all 0.2s ease; border-bottom: 1px solid var(--border-light);';
             tr.onmouseover = () => { tr.style.background = 'var(--bg-hover)'; };
             tr.onmouseout = () => { tr.style.background = 'transparent'; };
-            tr.onclick = (e) => { if(!e.target.closest('button')) viewHistoryItem(job.bulk_job_id); };
+            tr.onclick = (e) => { if (!e.target.closest('button')) viewHistoryItem(job.bulk_job_id); };
 
             const histTimerId = `hist-timer-${job.bulk_job_id}`;
             const histStaticDuration = jobDurationText(job);
-            const durationDisplay = histStaticDuration !== null 
-                ? histStaticDuration.replace('✅ ', '').replace('🛑 ', '') 
+            const durationDisplay = histStaticDuration !== null
+                ? histStaticDuration.replace('✅ ', '').replace('🛑 ', '')
                 : `<span id="${histTimerId}" style="color:var(--accent);">⏱ 0s</span>`;
 
             tr.innerHTML = `
@@ -589,7 +589,7 @@ if (authFormEmail) {
             document.getElementById('auth-form-email').style.display = 'none';
             document.getElementById('auth-form-otp').style.display = 'block';
             document.getElementById('auth-subtitle').innerText = `We've sent a verification code to ${email}`;
-            
+
             startResendTimer();
             hideAuthError();
         } catch (err) {
@@ -776,8 +776,8 @@ if (authFormOtp) {
                 const idToken = await result.user.getIdToken();
 
                 // Store currentPhone for the final register step if user doesn't exist
-                currentOTP = otp; 
-                
+                currentOTP = otp;
+
                 // Use unified sync helper
                 await syncFirebaseLogin(idToken);
             } else {
@@ -893,7 +893,7 @@ function setupSettingsListeners() {
     const saveBtn = document.getElementById('save-profile-btn');
     const cancelBtn = document.getElementById('cancel-profile-btn');
     const actionsRow = document.getElementById('settings-actions-row');
-    
+
     const nameInp = document.getElementById('settings-name-display');
     const emailInp = document.getElementById('settings-email-display');
     const userInp = document.getElementById('settings-user-display-input');
@@ -909,7 +909,7 @@ function setupSettingsListeners() {
             nameInp.style.background = 'rgba(249,115,22,0.03)';
             emailInp.style.background = 'rgba(249,115,22,0.03)';
             userInp.style.background = 'rgba(249,115,22,0.03)';
-            
+
             actionsRow.style.display = 'flex';
             editBtn.style.display = 'none';
         });
@@ -926,10 +926,10 @@ function setupSettingsListeners() {
             nameInp.style.background = 'none';
             emailInp.style.background = 'none';
             userInp.style.background = 'none';
-            
+
             actionsRow.style.display = 'none';
             editBtn.style.display = 'flex';
-            
+
             // Reset to original values
             const name = localStorage.getItem('username') || 'Admin User';
             const email = localStorage.getItem('user_email') || 'no-email@extractor.io';
@@ -943,7 +943,7 @@ function setupSettingsListeners() {
         saveBtn.addEventListener('click', async () => {
             saveBtn.disabled = true;
             saveBtn.innerText = 'Syncing...';
-            
+
             try {
                 const res = await fetchAPI('/auth/profile/update/', {
                     method: 'POST',
@@ -959,22 +959,22 @@ function setupSettingsListeners() {
                 // Persist successful changes
                 localStorage.setItem('username', nameInp.value);
                 localStorage.setItem('user_email', emailInp.value);
-                
+
                 alert('Protocol profile updated and synced successfully!');
                 if (cancelBtn) cancelBtn.click(); // Reset UI mode
-                
+
                 // Refresh main sidebar display
                 const sbUser = document.getElementById('sidebar-username');
                 if (sbUser) sbUser.innerText = nameInp.value;
-                
+
                 // Update large avatar letter in profile
                 const lAvatar = document.getElementById('profile-avatar-large');
                 if (lAvatar) lAvatar.textContent = nameInp.value.charAt(0).toUpperCase();
-                
+
                 // Update top header name
                 const profileTitle = document.getElementById('profile-full-name');
                 if (profileTitle) profileTitle.textContent = nameInp.value;
-                
+
             } catch (e) {
                 alert('Update Error: ' + e.message);
             } finally {
@@ -1090,11 +1090,11 @@ function validateInput(el, errorId) {
     const val = el.value;
     const errorEl = document.getElementById(errorId);
     if (!errorEl) return;
-    
+
     // Regex allows: alphanumeric, spaces, hyphens, and ampersands
     // Note: for bulk mode we also need to allow newlines
     const regex = el.tagName === 'TEXTAREA' ? /[^a-zA-Z0-9\s\-\&\n]/ : /[^a-zA-Z0-9\s\-\&]/;
-    
+
     if (regex.test(val)) {
         errorEl.style.display = 'block';
         el.style.borderColor = 'var(--danger)';
@@ -1122,7 +1122,7 @@ window.setSearchMode = (mode) => {
     const btnState = document.getElementById('mode-state-country');
     const inputSingle = document.getElementById('keyword');
     const inputBulk = document.getElementById('keyword-bulk');
-    
+
     // UI elements to update
     const keywordLabel = document.getElementById('keyword-label');
     const locationLabel = document.getElementById('location-label');
@@ -1174,7 +1174,7 @@ window.setSearchMode = (mode) => {
             activeBtn.style.color = 'white';
             activeBtn.style.fontWeight = '700';
         }
-        
+
         const currentRows = rowsContainer.querySelectorAll('.keyword-row');
         if (currentRows.length > 1) {
             const firstVal = currentRows[0].querySelector('input').value;
@@ -1210,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addKeywordRow('');
         }
     }
-    
+
     // Attach event listener to the add button robustly
     const addBtn = document.getElementById('add-keyword-btn');
     if (addBtn) {
@@ -1246,7 +1246,7 @@ if (searchForm) {
         }
 
         const mode = searchForm.dataset.mode || 'single';
-        
+
         // Single search logic
         if ((mode === 'single' || mode === 'state_country') && keywords.length > 1) {
             keywords = [keywords[0]];
@@ -1265,9 +1265,9 @@ if (searchForm) {
             const res = await fetchAPI('/jobs/start/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    keywords: keywords, 
-                    location, 
+                body: JSON.stringify({
+                    keywords: keywords,
+                    location,
                     strategy: strategy,
                     search_type: search_type,
                     grid_size: grid_size
@@ -1351,7 +1351,7 @@ async function fetchJobStatus(jobId) {
 
 async function renderJobs(allJobs) {
     if (!allJobs) return;
-    
+
     // Filter based on selected view mode
     let jobs = [...allJobs];
     if (currentTableViewMode === 'single') {
@@ -1374,7 +1374,7 @@ async function renderJobs(allJobs) {
             recentContainer.style.display = 'flex'; // Use flex for slider
             const top12 = jobs.slice(0, 12);
             let cardsHtml = '';
-            
+
             top12.forEach(job => {
                 let badgeClass = 'RUNNING';
                 if (job.status === 'completed') badgeClass = 'SUCCEEDED';
@@ -1421,7 +1421,7 @@ async function renderJobs(allJobs) {
                 if ((job.status === 'completed' || job.status === 'cancelled') && job.keywords && job.keywords.length > 0 && count > 0) {
                     const isBulk = job.keywords.length > 1;
                     const safeLoc = (job.location || "").replace(/'/g, "\\'");
-                    
+
                     if (isBulk) {
                         viewLink = `<button class="btn btn-blue" style="margin-top:12px; width:100%; border-radius:8px; font-size:0.8rem; font-weight:700; padding: 10px; letter-spacing:0.01em; box-shadow: 0 4px 10px var(--accent-soft);" onclick="viewJobResults(${job.bulk_job_id}, 'Master Dataset', '${safeLoc}', true)">Access Combined Leads</button>`;
                     } else {
@@ -1507,7 +1507,7 @@ async function renderJobs(allJobs) {
             });
 
             recentContainer.innerHTML = cardsHtml;
-            
+
             // Re-start timers
             top12.forEach(job => {
                 const cardTimerId = `card-timer-${job.bulk_job_id}`;
@@ -1550,7 +1550,7 @@ async function renderJobs(allJobs) {
                 if ((job.status === 'completed' || job.status === 'cancelled') && job.keywords && job.keywords.length > 0 && typeof job.keywords[0] === 'object' && count > 0) {
                     const isBulk = job.keywords.length > 1;
                     const safeLoc = (job.location || "").replace(/'/g, "\\'");
-                    
+
                     if (isBulk) {
                         actionBtn = `<a href="#" onclick="viewJobResults(${job.bulk_job_id}, 'Master Results', '${safeLoc}', true)" style="color:var(--accent); text-decoration:none; font-weight:800; font-size:0.75rem; display:block; margin-bottom:4px; border-bottom: 2px solid var(--accent-soft); padding-bottom: 2px;">View Master Dataset</a>`;
                     } else {
@@ -1575,7 +1575,7 @@ async function renderJobs(allJobs) {
 
                         const p_status = job.status === 'cancelled' ? 'Aborted' : (job.status === 'failed' ? 'Failed' : 'Active');
                         const p_color = job.status === 'cancelled' ? 'var(--text-muted)' : (job.status === 'failed' ? 'var(--danger)' : 'var(--accent)');
-                        
+
                         actionBtn = `
                             <div style="min-width: 100px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 3px;">
@@ -1651,7 +1651,7 @@ async function renderJobs(allJobs) {
     }
 
     if (activitiesPanel) {
-        activitiesPanel.style.display = 'block'; 
+        activitiesPanel.style.display = 'block';
     }
 }
 
@@ -1957,7 +1957,7 @@ const gdriveBtn = document.getElementById('save-gdrive-btn');
 if (gdriveBtn) {
     gdriveBtn.onclick = async () => {
         if (currentDetailResults.length === 0) return alert("Nothing to export");
-        
+
         // Generate CSV content for Drive upload
         const fields = availableFields.filter(f => selectedFields.has(f));
         const csvRows = [fields.join(',')];
@@ -1986,7 +1986,7 @@ if (gdriveBtn) {
 window.initiatePayment = async (packageId, name, label, price) => {
     console.log("Initiating payment protocol sync for:", name);
     const modal = document.getElementById('payment-modal');
-    
+
     // Save package reference for the modal's proceed button to use
     window.selectedPackageId = packageId;
 
@@ -1999,13 +1999,13 @@ window.initiatePayment = async (packageId, name, label, price) => {
         // Update Premium Modal UI Elements
         if (document.getElementById('pm-package-type')) document.getElementById('pm-package-type').textContent = packageName;
         if (document.getElementById('pm-tier-label')) document.getElementById('pm-tier-label').textContent = pkgLabel;
-        
+
         // Ensure price has currency symbol
         if (!priceText.includes('$')) priceText = '$' + priceText;
-        
+
         if (document.getElementById('pm-calc')) document.getElementById('pm-calc').textContent = `1 protocol x ${priceText}`;
         if (document.getElementById('pm-total')) document.getElementById('pm-total').textContent = `= ${priceText} (USD)`;
-        
+
         // Initial visual mock info for the card side panel
         if (document.getElementById('v-card-name')) document.getElementById('v-card-name').value = (localStorage.getItem('username') || 'PLAYER ONE').toUpperCase();
         if (document.getElementById('v-card-num')) document.getElementById('v-card-num').value = '4242 4242 4242 4242';
@@ -2157,7 +2157,7 @@ window.connectGoogleDrive = function () {
 // Disconnect Google Drive
 window.disconnectGoogleDrive = function () {
     if (gdriveAccessToken && typeof google !== 'undefined' && google.accounts) {
-        google.accounts.oauth2.revoke(gdriveAccessToken, () => {});
+        google.accounts.oauth2.revoke(gdriveAccessToken, () => { });
     }
     gdriveAccessToken = null;
     gdriveEmail = null;
@@ -2234,7 +2234,7 @@ window.switchProfileTab = (tab) => {
         t.style.color = 'var(--text-muted)';
         t.style.opacity = '0.6';
     });
-    
+
     // Simple mock tab switching (only 'view' is implemented)
     const active = event ? event.currentTarget : document.querySelector('.profile-tab');
     if (active) {
@@ -2249,7 +2249,7 @@ window.loadUserProfile = async () => {
     // Basic local restoration (immediate UI response)
     const localUsername = localStorage.getItem('username') || 'Admin User';
     const localEmail = localStorage.getItem('user_email') || 'Fetching...';
-    
+
     // UI Elements
     const avatar = document.getElementById('profile-avatar-large');
     const fullName = document.getElementById('profile-full-name');
@@ -2257,7 +2257,7 @@ window.loadUserProfile = async () => {
     const nameInput = document.getElementById('settings-name-display');
     const emailInput = document.getElementById('settings-email-display');
     const history = document.getElementById('login-history-list');
-    
+
     if (avatar) avatar.textContent = localUsername.charAt(0).toUpperCase();
     if (fullName) fullName.textContent = localUsername;
     if (userDisplayInput) userDisplayInput.value = localUsername.toLowerCase().replace(/\s+/g, '_');
@@ -2269,35 +2269,35 @@ window.loadUserProfile = async () => {
         const res = await fetchAPI('/auth/profile/');
         if (res.ok) {
             const data = await res.json();
-            
+
             // Sync with backend truth
             if (avatar) avatar.textContent = data.username.charAt(0).toUpperCase();
             if (fullName) fullName.textContent = data.username;
             if (userDisplayInput) userDisplayInput.value = data.username;
             if (nameInput) nameInput.value = data.username;
             if (emailInput) emailInput.value = data.email || 'No email set';
-            
+
             // Update Stats from backend/cache
             const totalLeads = latestJobsCache.reduce((sum, job) => sum + (job.total_extracted || 0), 0);
             const totalUnits = latestJobsCache.length;
             const totalBulk = latestJobsCache.filter(j => j.is_bulk).length;
-            
+
             if (document.getElementById('stat-leads')) document.getElementById('stat-leads').textContent = totalLeads.toLocaleString();
             if (document.getElementById('stat-units')) document.getElementById('stat-units').textContent = totalUnits;
             if (document.getElementById('stat-bulk')) document.getElementById('stat-bulk').textContent = totalBulk;
-            
+
             // Subscription Card Sync
             const subProgress = document.getElementById('sub-progress-bar');
             const searchLimit = parseInt(localStorage.getItem('search_limit')) || 10;
             const percent = Math.min(100, (totalUnits / searchLimit) * 100);
             if (subProgress) subProgress.style.width = `${percent}%`;
-            
+
             const subType = document.getElementById('sub-type-badge');
             if (subType) subType.textContent = data.package || 'Standard Protocol';
 
             const daysLeft = document.getElementById('sub-days-left');
             if (daysLeft) daysLeft.textContent = 'Active Protocol';
-            
+
             // REAL Login Sessions (Exact data from API)
             if (history) {
                 history.innerHTML = '';
@@ -2307,7 +2307,7 @@ window.loadUserProfile = async () => {
                     ip: data.current_ip || 'Internal IP',
                     time: data.last_login || 'Just now'
                 };
-                
+
                 const item = document.createElement('div');
                 item.style.cssText = 'padding: 10px 20px; border-bottom: 1px solid #f8fafc; display: flex; justify-content: space-between; align-items: center; background: rgba(16, 185, 129, 0.03); border-left: 3px solid #10b981;';
                 item.innerHTML = `
@@ -2326,14 +2326,14 @@ window.loadUserProfile = async () => {
                 // Add Logout/Terminate Button at the bottom
                 const logoutContainer = document.createElement('div');
                 logoutContainer.style.cssText = 'padding: 16px 20px; display: flex; justify-content: center;';
-                
+
                 const sessionLogoutBtn = document.createElement('button');
                 sessionLogoutBtn.innerHTML = `
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:8px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     Terminate Protocol Session
                 `;
                 sessionLogoutBtn.style.cssText = 'width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; font-size: 0.7rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; text-transform: uppercase; letter-spacing: 0.02em;';
-                
+
                 sessionLogoutBtn.onmouseover = () => {
                     sessionLogoutBtn.style.background = '#ef4444';
                     sessionLogoutBtn.style.color = 'white';
@@ -2342,14 +2342,14 @@ window.loadUserProfile = async () => {
                     sessionLogoutBtn.style.background = 'rgba(239, 68, 68, 0.08)';
                     sessionLogoutBtn.style.color = '#ef4444';
                 };
-                
+
                 sessionLogoutBtn.onclick = logoutHandler;
                 logoutContainer.appendChild(sessionLogoutBtn);
                 history.appendChild(logoutContainer);
             }
         }
-    } catch (e) { 
-        console.warn("Profile fetch fail", e); 
+    } catch (e) {
+        console.warn("Profile fetch fail", e);
     }
 
     // Load Activity Feed

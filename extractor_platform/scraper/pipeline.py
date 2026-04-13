@@ -1,6 +1,7 @@
 # scraper/pipeline.py
 import asyncio
 import random
+import math
 import structlog
 from django.utils import timezone
 from playwright.async_api import async_playwright
@@ -58,15 +59,6 @@ async def run_keyword_pipeline(keyword_job_id: int):
             nonlocal saved_count
             new_objs = []
             for p in places:
-                # 🛡️ COORDINATE GEOFENCING: Drop results further than 40km from Bhilwara
-                lat, lng = p.get('latitude'), p.get('longitude')
-                if lat and lng:
-                    # Rough distance check for Bhilwara area (center: 25.35, 74.64)
-                    dist = math.sqrt((float(lat) - 25.348)**2 + (float(lng) - 74.636)**2)
-                    if dist > 0.45: # Approx 45-50km radius
-                        log.info("pipeline.out_of_bounds_discarded", name=p.get('name'), dist=dist)
-                        continue
-
                 # 🆔 STABLE IDENTITY CHECK: Use place_id (fingerprint)
                 pid = p.get('place_id')
                 if not pid or pid in seen_fingerprints: continue

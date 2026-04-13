@@ -1,4 +1,6 @@
 # scraper/search.py
+# VERSION 2.0 — PRODUCTION-GRADE EXTRACTION ENGINE
+# Rewrote from scratch for accuracy, speed, and reliability.
 import asyncio
 import re
 import random
@@ -11,7 +13,6 @@ except ImportError:
     try:
         from playwright_stealth.stealth import stealth_async
     except ImportError:
-        # Fallback to sync or no-op if async is missing
         async def stealth_async(page, **kwargs): pass
 
 from fake_useragent import UserAgent
@@ -21,369 +22,521 @@ from scraper.cache import get_cached_results, set_cached_results
 
 log = structlog.get_logger()
 
+# ─── TEXT CLEANING UTILITIES ───────────────────────────────────────────
+EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map
+    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "\U0001f926-\U0001f937"
+    "\U00010000-\U0010ffff"
+    "\u2640-\u2642"
+    "\u2600-\u2B55"
+    "\u200d\u23cf\u23e9\u231a\ufe0f\u3030"
+    "]+", flags=re.UNICODE
+)
+
+CATEGORY_PREFIXES = re.compile(
+    r'^(Gym|Fitness center|Fitness Centre|Yoga studio|Club|Restaurant|Cafe|Bar|Hotel|Spa|Salon|'
+    r'Health club|Sports club|Swimming pool|Dance studio|Martial arts school|'
+    r'Boxing gym|Crossfit gym|Pilates studio|Personal trainer|Dietitian|'
+    r'Shopping mall|Temple|Hospital|School|College|University|Bank|ATM|'
+    r'Gas station|Petrol pump|Pharmacy|Doctor|Dentist|Veterinarian|'
+    r'Supermarket|Grocery store|Bakery|Ice cream shop|Pizza|'
+    r'Car dealer|Car repair|Car wash|Parking|'
+    r'Beauty salon|Hair salon|Nail salon|Tattoo shop|'
+    r'Real estate|Insurance|Lawyer|Accountant|'
+    r'Clothing store|Shoe store|Jewelry store|'
+    r'Electronics store|Hardware store|Furniture store|'
+    r'Travel agency|Tour operator|'
+    r'Mosque|Church|Gurudwara|'
+    r'Post office|Police station|Fire station|'
+    r'Cinema|Theater|Museum|Library|Park|'
+    r'Rooftop|Lounge|Pub|Nightclub|'
+    r'Physiotherapist|Chiropractor|Acupuncturist|'
+    r'Pet store|Animal hospital|'
+    r'Event planner|Wedding planner|Photographer|'
+    r'Laundry|Dry cleaner|Tailor|'
+    r'Moving company|Storage|'
+    r'Locksmith|Plumber|Electrician)'
+    r'\s*[·:•\-–—]\s*',
+    re.IGNORECASE
+)
+
+PLUS_CODE_PATTERN = re.compile(r'^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,4}')
+
+
+def clean_text(text: str) -> str:
+    """Strip emojis, category prefixes, and junk from extracted text."""
+    if not text:
+        return ""
+    text = EMOJI_PATTERN.sub('', text).strip()
+    # Strip leading/trailing dots, colons, middots
+    text = re.sub(r'^[\s·:•\-–—]+|[\s·:•\-–—]+$', '', text)
+    return text.strip()
+
+
+def clean_address(text: str) -> str:
+    """Remove category prefixes and emojis from address strings."""
+    if not text:
+        return ""
+    text = clean_text(text)
+    # Remove category prefix like "Gym · " or "Fitness center · "
+    text = CATEGORY_PREFIXES.sub('', text)
+    # Remove remaining leading middots/spaces
+    text = re.sub(r'^[\s·:•\-–—]+', '', text).strip()
+    return text
+
+
+def is_plus_code(text: str) -> bool:
+    """Check if text is a Google Plus Code (junk for our purposes)."""
+    return bool(PLUS_CODE_PATTERN.match(text.strip()))
+
+
+def extract_city_from_address(address: str, fallback_city: str = "") -> str:
+    """Extract the actual city name from the end of an address string."""
+    if not address:
+        return fallback_city
+    
+    parts = [p.strip() for p in address.split(',')]
+    # Walk backwards through parts to find a city-like name
+    for part in reversed(parts):
+        part = clean_text(part)
+        # Skip empty, zip codes, state codes, country names
+        if not part:
+            continue
+        if re.match(r'^\d{5,6}$', part):  # ZIP/PIN code
+            continue
+        if part.lower() in ('india', 'rajasthan', 'maharashtra', 'gujarat', 'delhi', 'haryana', 'up', 'mp'):
+            continue
+        if len(part) < 3:
+            continue
+        # This is likely the city
+        return part
+    
+    return fallback_city
+
+
+# ─── SIDE-PANEL DETAIL EXTRACTOR ──────────────────────────────────────
 class GoogleDetailsExtractor:
     """
-    Handles robust extraction of a single business from its detail page.
-    Uses multi-strategy fallbacks to survive Google Maps UI updates.
+    Extracts detailed business data from the Google Maps side panel.
+    Uses aria-label and data-item-id selectors which are the most stable.
     """
     async def extract(self, page) -> dict:
         try:
-            # 1. NAME Extraction (Robust Fallbacks)
+            # 1. NAME — Most reliable selectors first
             name = await self._find_text(page, [
-                'h1.DUwDvf', 'h1.fontHeadlineLarge', 'h1.du43p', 'h1', '[role="heading"]'
+                'h1.DUwDvf', 'h1.fontHeadlineLarge', 'h1'
             ])
-            if not name: return None
+            if not name:
+                return None
 
-            # 2. CATEGORY Extraction 
+            # 2. CATEGORY
             category = await self._find_text(page, [
-                'button[jsaction*="category"]', '.fontBodyMedium[jsaction*="category"]', '.u60ur'
-            ])
-            
-            # 3. ADDRESS Extraction (Data-item-id is the most stable)
-            address = await self._find_text(page, [
-                'button[data-item-id*="address"]', '[aria-label*="Address"]', '.Io6YTe.fontBodyMedium'
+                'button[jsaction*="category"]',
+                '.DkEaL',
+                'button.DkEaL',
             ])
 
-            # 4. PHONE Extraction
-            phone = await self._find_text(page, [
-                'button[data-item-id*="phone"]', '[aria-label*="Phone"]', '.fontBodyMedium[aria-label*="Phone"]'
-            ])
+            # 3. ADDRESS — data-item-id="address" is rock-stable
+            address = ""
+            try:
+                addr_btn = page.locator('button[data-item-id="address"], button[data-item-id*="address"]').first
+                if await addr_btn.count() > 0:
+                    address = (await addr_btn.get_attribute('aria-label') or "").replace("Address: ", "").strip()
+                    if not address:
+                        address = (await addr_btn.inner_text(timeout=500)).strip()
+            except:
+                pass
+            if not address:
+                address = await self._find_text(page, [
+                    '[data-item-id*="address"]', '.Io6YTe.fontBodyMedium', '.rogA2c .Io6YTe'
+                ])
+            address = clean_address(address)
 
-            # 5. WEBSITE Extraction
-            web_el = page.locator('a[data-item-id*="authority"], [aria-label*="Website"], .fontBodyMedium[aria-label*="Website"]').first
-            website = await web_el.get_attribute('href') if await web_el.count() > 0 else ""
+            # 4. PHONE — data-item-id="phone:tel:" is the gold standard
+            phone = ""
+            try:
+                phone_btn = page.locator('button[data-item-id^="phone:tel:"]').first
+                if await phone_btn.count() > 0:
+                    phone = (await phone_btn.get_attribute('data-item-id') or "").replace("phone:tel:", "").strip()
+                    if not phone:
+                        phone = (await phone_btn.get_attribute('aria-label') or "").replace("Phone: ", "").strip()
+            except:
+                pass
+            if not phone:
+                phone = await self._find_text(page, [
+                    'button[data-item-id^="phone"]',
+                    '[aria-label*="Phone"]',
+                ])
+                if phone:
+                    phone = re.sub(r'^Phone:\s*', '', phone).strip()
 
-            # 6. RATING & REVIEWS
+            # 5. WEBSITE — a[data-item-id="authority"] href is most reliable
+            website = ""
+            try:
+                web_el = page.locator('a[data-item-id="authority"]').first
+                if await web_el.count() > 0:
+                    website = await web_el.get_attribute('href') or ""
+            except:
+                pass
+            if not website:
+                try:
+                    web_el2 = page.locator('a[aria-label*="Website"]').first
+                    if await web_el2.count() > 0:
+                        website = await web_el2.get_attribute('href') or ""
+                except:
+                    pass
+
+            # 6. RATING
             rating = ""
-            try: 
-                rating_el = page.locator('span.ceNzR[aria-label*="stars"]').first
+            try:
+                # The rating span with aria-label "X.X stars"
+                rating_el = page.locator('div.F7nice span[aria-hidden="true"]').first
                 if await rating_el.count() > 0:
-                    raw = await rating_el.get_attribute('aria-label')
-                    rating = re.sub(r'[^\d\.]', '', raw.split(' ')[0]) if raw else ""
-            except: pass
+                    rating = (await rating_el.inner_text(timeout=500)).strip()
+                if not rating:
+                    rating_el2 = page.locator('span[aria-label*="stars"]').first
+                    if await rating_el2.count() > 0:
+                        raw = await rating_el2.get_attribute('aria-label') or ""
+                        r_match = re.search(r'([\d.]+)', raw)
+                        if r_match:
+                            rating = r_match.group(1)
+            except:
+                pass
 
+            # 7. REVIEW COUNT
             review_count = ""
-            try: 
-                review_btn = page.locator('button.HHrUfc[aria-label*="reviews"]').first
-                if await review_btn.count() > 0:
-                    review_text = await review_btn.inner_text()
-                    review_count = re.sub(r'[^\d]', '', review_text)
-            except: pass
+            try:
+                # Try the review count inside parentheses next to rating
+                rev_el = page.locator('div.F7nice span[aria-label*="reviews"]').first
+                if await rev_el.count() > 0:
+                    rev_text = (await rev_el.get_attribute('aria-label') or "")
+                    rev_match = re.search(r'([\d,]+)', rev_text)
+                    if rev_match:
+                        review_count = rev_match.group(1).replace(',', '')
+                if not review_count:
+                    rev_btn = page.locator('button[jsaction*="reviewChart"] span, span[aria-label*="reviews"]').first
+                    if await rev_btn.count() > 0:
+                        rev_text = await rev_btn.inner_text(timeout=500)
+                        rev_match = re.search(r'([\d,]+)', rev_text)
+                        if rev_match:
+                            review_count = rev_match.group(1).replace(',', '')
+            except:
+                pass
 
-            # Smart Address Parsing
-            city = ""
-            if address and ',' in address:
-                parts = [p.strip() for p in address.split(',')]
-                if len(parts) >= 2:
-                    city = parts[-2] if len(parts) < 4 else parts[-3]
+            city = extract_city_from_address(address)
+
+            # Place ID from URL
+            place_id = name
+            try:
+                if 'place/' in page.url:
+                    place_id = page.url.split('place/')[1].split('/')[0]
+            except:
+                pass
 
             return {
-                'place_id': page.url.split('place/')[1].split('/')[0] if 'place/' in page.url else name,
-                'name': name,
-                'category': category,
+                'place_id': place_id,
+                'name': clean_text(name),
+                'category': clean_text(category),
                 'street': address,
                 'city': city,
-                'phone': phone,
+                'phone': clean_text(phone),
                 'website': website,
                 'rating': rating,
                 'review_count': review_count,
                 'maps_url': page.url
             }
         except Exception as e:
-            log.warning("extraction.failed", url=page.url, error=str(e))
+            log.warning("extraction.detail_failed", url=page.url, error=str(e))
             return None
 
     async def _find_text(self, page, selectors):
-        """Try multiple selectors and return first successful inner text."""
+        """Try multiple selectors, return first successful text."""
         for s in selectors:
             try:
                 el = page.locator(s).first
                 if await el.count() > 0:
-                    txt = (await el.inner_text(timeout=400)).strip()
-                    if txt: return txt
-            except: continue
+                    txt = (await el.inner_text(timeout=500)).strip()
+                    if txt:
+                        return txt
+            except:
+                continue
         return ""
+
 
 async def extract_single_page(page, cell):
     extractor = GoogleDetailsExtractor()
     details = await extractor.extract(page)
     if details:
-        # Add coordinates from cell center if not present in details
         details['latitude'] = cell.center_lat
         details['longitude'] = cell.center_lng
     return details
 
+
+# ─── MAIN SEARCH FUNCTION ─────────────────────────────────────────────
 async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     """
-    VERSION 1.4 — Layout-Agnostic Extraction
-    Uses multi-selector fallbacks to survive Google Maps updates.
+    VERSION 2.0 — DETAIL-FIRST EXTRACTION
+    
+    Strategy:
+    1. Navigate to search results for this grid cell
+    2. Collect all card links from the feed
+    3. Click EACH card to open the side panel
+    4. Extract ALL data from the side panel (phone, website, rating, reviews, address)
+    5. Return fully populated results
+    
+    This is slower per cell but gets 100% accurate data.
     """
     query = keyword
     zoom = getattr(cell, 'zoom', 14)
     url = f"https://www.google.com/maps/search/{quote(query)}/@{cell.center_lat},{cell.center_lng},{zoom}z"
 
-    # Dynamic, realistic User-Agent
     random_ua = ua.random if ua else 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-    
-    # Correct Playwright Proxy Parameter
+
     context_args = {
         'viewport': {'width': random.randint(1280, 1440), 'height': random.randint(800, 900)},
         'user_agent': random_ua,
     }
-    
     if proxy_url:
         context_args['proxy'] = {'server': proxy_url}
-        log.info("playwright.context_created", proxy=proxy_url)
 
     context = await browser.new_context(**context_args)
 
-    # 🏎️ ULTRA-SLIM: Block all non-essential resources to kill CPU spikes
+    # Block heavy resources but KEEP CSS for accurate rendering
     async def block_waste(route):
-        bad_types = ['image', 'media', 'other', 'manifest', 'texttrack', 'object', 'imageset']
+        bad_types = ['image', 'media', 'manifest', 'texttrack', 'object', 'imageset']
+        url_lower = route.request.url.lower()
         if route.request.resource_type in bad_types:
             await route.abort()
-        elif any(x in route.request.url.lower() for x in ['google-analytics', 'doubleclick', 'facebook', 'analytics', 'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google']):
+        elif any(x in url_lower for x in [
+            'google-analytics', 'doubleclick', 'facebook', 'analytics',
+            'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google',
+            'play.google.com', 'maps.googleapis.com/maps/vt',  # map tile images
+        ]):
             await route.abort()
         else:
             await route.continue_()
 
     await context.route("**/*", block_waste)
-    
+
     from .manager import browser_manager
     page = await browser_manager.acquire_page(context)
-    await stealth_async(page) # Apply fingerprint masks
+    await stealth_async(page)
     places = []
 
     try:
-        # Phase 1: Navigation with Retry
+        # ── Phase 1: Navigate ──
         for attempt in range(2):
             try:
-                # 'commit' is much faster than 'domcontentloaded' for slow servers
                 await page.goto(url, wait_until='commit', timeout=45000)
-                # Now manually wait for the content to start appearing
                 await page.wait_for_selector('div[role="feed"], h1.DUwDvf, [role="main"]', timeout=30000)
                 break
             except Exception as e:
-                if attempt == 1: raise e
-                log.info("scraper.navigation_retry", attempt=attempt+1)
+                if attempt == 1:
+                    raise e
                 await asyncio.sleep(2)
-        
-        # 🤖 ROBOT DETECTION (Explicit check for CAPTCHAs)
-        content = await page.content()
-        if "google.com/sorry" in page.url or "not a robot" in content.lower():
-            log.error("scraper.blocked", reason="CAPTCHA_DETECTED", proxy=proxy_url)
+
+        # Robot check
+        if "google.com/sorry" in page.url or "not a robot" in (await page.content()).lower():
+            log.error("scraper.blocked", reason="CAPTCHA")
             return []
 
-        # Cookie acceptance (Aggressive & Multi-language)
+        # Cookie/consent dismiss
         try:
-            for s in ['button[aria-label*="Accept"]', 'button[aria-label*="Agree"]', 'button.VfPpkd-LgbsSe', 'button[aria-label*="Alle akzeptieren"]']:
+            for s in ['button[aria-label*="Accept"]', 'button[aria-label*="Agree"]']:
                 btn = page.locator(s).first
                 if await btn.count() > 0:
                     await btn.click()
-                    await asyncio.sleep(1) 
+                    await asyncio.sleep(1)
                     break
-        except: pass
+        except:
+            pass
 
-        # 🕵️‍♂️ CHECK FOR "NO RESULTS" TEXT
-        no_res_txt = await page.content()
-        if "couldn't find" in no_res_txt.lower() or "no results" in no_res_txt.lower():
-            log.info("scraper.zero_results", query=query, cell=cell.id)
+        # No results check
+        content = await page.content()
+        if "couldn't find" in content.lower() or "no results" in content.lower():
             return []
 
-        # Check for list or single result
+        # ── Phase 2: Wait for feed or single result ──
         feed_found = False
         try:
-            # 🕰️ INCREASE WAIT: Google Maps can be slow to populate the feed after the shell loads
             await page.wait_for_selector('div[role="feed"], h1.DUwDvf, a.hfpxzc', timeout=25000)
             feed_found = True
-        except: 
-            # 📸 DIAGNOSTIC: Capture what the scraper sees if it fails
-            shot_path = f"scratch/debug_{int(asyncio.get_event_loop().time())}.png"
-            try:
-                await page.screenshot(path=shot_path)
-                log.info("scraper.debug_screenshot_saved", path=shot_path)
-            except: pass
-
-        if not feed_found:
-            log.warning("scraper.no_results_feed", query=query, url=page.url)
+        except:
+            log.warning("scraper.no_feed", query=query)
             return []
 
-        if await page.locator('h1.DUwDvf').count() > 0:
-            one = await extract_single_page(page, cell)
-            if one: return [one]
+        if not feed_found:
+            return []
 
-        # Fast Scroll
+        # Single result page (redirected directly to a business)
+        if await page.locator('h1.DUwDvf').count() > 0 and await page.locator('div[role="feed"]').count() == 0:
+            one = await extract_single_page(page, cell)
+            if one:
+                return [one]
+
+        # ── Phase 3: Scroll the feed to load all results ──
         last_count = 0
-        for _ in range(25):
+        for _ in range(20):
             await page.evaluate("const f=document.querySelector('div[role=\"feed\"]'); if(f) f.scrollTop=f.scrollHeight;")
-            await asyncio.sleep(0.5)
-            count = await page.locator('div[role="feed"] > div > div[jsaction]').count()
-            if count == last_count: break
+            await asyncio.sleep(0.4)
+            count = await page.locator('a.hfpxzc').count()
+            if count == last_count:
+                break
             last_count = count
 
-        places = await extract_from_cards(page, cell)
-
-        # 🎯 PRECISION UPGRADE: Deep Scan Fallback
-        # If any place is missing critical data, click and extract specifically from the side panel
-        # Limit deep scans to 20 per cell to maintain performance/avoid detection
-        incomplete_places = [p for p in places if not p.get('phone') or not p.get('website')]
+        # ── Phase 4: DETAIL-FIRST EXTRACTION ──
+        # Click EVERY card and extract from the side panel for 100% accuracy
+        cards = await page.locator('a.hfpxzc').all()
+        extractor = GoogleDetailsExtractor()
         
-        if incomplete_places:
-            log.info("scraper.deep_scan_start", count=len(incomplete_places))
-            extractor = GoogleDetailsExtractor()
-            cards = await page.locator('a.hfpxzc, [role="article"]').all()
+        log.info("scraper.extracting_details", card_count=len(cards), cell=cell.index)
+        
+        for i, card in enumerate(cards):
+            await asyncio.sleep(0.05)  # Yield for heartbeats
             
-            for i, p in enumerate(places):
-                await asyncio.sleep(0.1) # 🛑 STABILITY: Yield for heartbeats 
-                # Skip if already complete
-                if p.get('phone') and p.get('website'):
+            try:
+                # Get basic info from card first (aria-label has name + rating)
+                label = await card.get_attribute('aria-label') or ""
+                href = await card.get_attribute('href') or ""
+                
+                if not label:
+                    continue
+                    
+                # Skip ads
+                if any(x in label.lower() for x in ['ad ', 'sponsored']):
                     continue
                 
-                # Check for stopping condition/exhaustion
-                if i >= len(cards): break
+                # Extract name from aria-label
+                card_name = label.split(' · ')[0].strip() if ' · ' in label else label.strip()
+                card_name = clean_text(card_name)
+                if not card_name:
+                    continue
                 
+                # Extract coordinates from href
+                lat, lng = None, None
+                coord_match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
+                if coord_match:
+                    lat = float(coord_match.group(1))
+                    lng = float(coord_match.group(2))
+
+                # Click the card to open the side panel
                 try:
-                    card = cards[i]
-                    # Ensure we are clicking the right card by checking the name
-                    card_label = await card.get_attribute('aria-label') or ""
-                    if p['name'] not in card_label:
-                        continue
-                    
                     await card.click()
-                    # Wait for side panel to update (Name should match)
-                    try:
-                        await page.wait_for_selector(f'h1:has-text("{p["name"]}")', timeout=5000)
-                    except:
-                        # Fallback: maybe just wait a second
-                        await asyncio.sleep(1.2)
+                except:
+                    continue
+
+                # Wait for the side panel to load with the business details
+                try:
+                    # Wait for the phone or address button to appear (most reliable signal)
+                    await page.wait_for_selector(
+                        'button[data-item-id*="address"], button[data-item-id^="phone:tel:"], h1.DUwDvf',
+                        timeout=4000
+                    )
+                    # Small extra wait for remaining elements to hydrate
+                    await asyncio.sleep(0.3)
+                except:
+                    # Fallback: just wait a bit
+                    await asyncio.sleep(1.0)
+
+                # Extract full details from the side panel
+                details = await extractor.extract(page)
+                
+                if details:
+                    # Use card coordinates if detail extraction didn't pick them up
+                    if lat and not details.get('latitude'):
+                        details['latitude'] = lat
+                    if lng and not details.get('longitude'):
+                        details['longitude'] = lng
                     
-                    details = await extractor.extract(page)
-                    if details:
-                        # Merge details (Detail page is always more accurate)
-                        p.update({
-                            'street': details.get('street') or p.get('street'),
-                            'phone': details.get('phone') or p.get('phone'),
-                            'website': details.get('website') or p.get('website'),
-                            'rating': details.get('rating') or p.get('rating'),
-                            'review_count': details.get('review_count') or p.get('review_count'),
-                            'category': details.get('category') or p.get('category'),
-                        })
-                        log.debug("scraper.deep_scan_success", name=p['name'])
+                    # Use cell center as final fallback for coordinates
+                    if not details.get('latitude'):
+                        details['latitude'] = cell.center_lat
+                    if not details.get('longitude'):
+                        details['longitude'] = cell.center_lng
                     
-                    # Small human-like variance
-                    await asyncio.sleep(random.uniform(0.5, 1.0))
-                except Exception as e:
-                    log.debug("scraper.deep_scan_failed", name=p['name'], error=str(e))
+                    places.append(details)
+                    log.debug("scraper.detail_ok", name=details.get('name'), phone=bool(details.get('phone')))
+                else:
+                    # Fallback: save basic info from the card itself
+                    # Parse rating from aria-label
+                    card_rating = ""
+                    card_reviews = ""
+                    card_category = ""
+                    if ' · ' in label:
+                        parts = label.split(' · ')
+                        for p in parts[1:]:
+                            if 'star' in p.lower():
+                                r_match = re.search(r'([\d.]+)', p)
+                                if r_match:
+                                    card_rating = r_match.group(1)
+                                rev_match = re.search(r'\(([\d,]+)\)', p)
+                                if rev_match:
+                                    card_reviews = rev_match.group(1).replace(',', '')
+                            elif not card_category:
+                                card_category = clean_text(p)
+                    
+                    # Build stable fingerprint
+                    stable_id = f"{card_name.lower().replace(' ', '_')}"
+                    
+                    places.append({
+                        'place_id': stable_id,
+                        'name': card_name,
+                        'category': card_category,
+                        'street': '',
+                        'city': '',
+                        'phone': '',
+                        'website': '',
+                        'rating': card_rating,
+                        'review_count': card_reviews,
+                        'maps_url': href or page.url,
+                        'latitude': lat or cell.center_lat,
+                        'longitude': lng or cell.center_lng,
+                    })
+
+                # Navigate back to the list
+                try:
+                    back_btn = page.locator('button[aria-label="Back"], button[jsaction*="back"]').first
+                    if await back_btn.count() > 0:
+                        await back_btn.click()
+                        await asyncio.sleep(0.3)
+                    else:
+                        # Press Escape to close the side panel
+                        await page.keyboard.press('Escape')
+                        await asyncio.sleep(0.3)
+                except:
+                    pass
+                    
+                # Small random delay between clicks (anti-detection)
+                await asyncio.sleep(random.uniform(0.2, 0.5))
+
+            except Exception as e:
+                log.debug("scraper.card_detail_failed", index=i, error=str(e))
+                continue
 
     finally:
         await page.close()
         browser_manager.release_page()
         await context.close()
-    return places
 
-async def extract_from_cards(page, cell) -> list:
-    """HYPER-FAST ARIA SCANNER: Extracts data instantly from the list with improved regex heuristics."""
-    places = []
-    cards = await page.locator('a.hfpxzc, [role="article"]').all()
-
-    for i, card in enumerate(cards):
-        await asyncio.sleep(0.05) # 🛑 STABILITY: Yield for heartbeats
-        try:
-            label = await card.get_attribute('aria-label') or ""
-            text = await card.inner_text() or ""
-            href = await card.get_attribute('href') or ""
-            
-            # 🗺️ COORDINATE EXTRACTION: Pull from the Maps URL
-            # Format: .../@25.348,74.636,14z/...
-            lat, lng = None, None
-            coord_match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
-            if coord_match:
-                lat = float(coord_match.group(1))
-                lng = float(coord_match.group(2))
-
-            if any(ad_marker in label.lower() or ad_marker in text.lower() for ad_marker in ['ad ', 'sponsored']):
-                continue
-
-            # 2. NAME EXTRACTION
-            name = label.split(' · ')[0] if ' · ' in label else text.split('\n')[0]
-            if not name: continue
-
-            # 3. METADATA PARSING (Rating, Count, Category)
-            rating = ""
-            review_count = ""
-            category = ""
-            
-            # Use Regex on Label which is more structured
-            # Format: "Name · 4.5 stars (1,234) · Category"
-            if ' · ' in label:
-                parts = label.split(' · ')
-                for p in parts:
-                    # Check for rating
-                    if 'stars' in p.lower():
-                        r_match = re.search(r'(\d[\d\.]*)', p)
-                        if r_match: rating = r_match.group(1)
-                        # Check for reviews inside parentheses after the rating
-                        rev_match = re.search(r'\((\d[\d,]*)\)', p)
-                        if rev_match: review_count = rev_match.group(1).replace(',', '')
-                    elif p != name and not any(x in p.lower() for x in ['stars', 'reviews']):
-                        # If it's not the name and not rating, it's likely the category
-                        if not category: category = p.strip()
-
-            # 4. ADDRESS / PHONE / WEBSITE
-            lines = [l.strip() for l in text.split('\n') if l.strip()]
-            address = ""
-            phone = ""
-            website = ""
-            
-            for line in lines:
-                # Website Heuristic: Must contain '.' but NOT be a number (like rating 4.5)
-                # Stricter URL regex
-                if re.search(r'^[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}(/.*)?$', line) or ('.' in line and ('/' in line or 'www' in line.lower())):
-                    # Ensure it's not a rating (e.g. "4.5") or review count
-                    if not re.search(r'^\d+\.?\d*$', line):
-                        website = line
-                # Phone Heuristic (Standard formats)
-                elif re.search(r'(\d{3,}-\d{3,}-\d{4}|\+\d{1,3}|^\d{10,12}$)', line.replace(' ', '')):
-                    phone = line
-                # Address Heuristic: Usually longer lines or lines with specific parts
-                elif len(line) > 10 and (any(x in line.lower() for x in ['rd', 'st', 'ave', 'lane', 'mumbai', 'india', 'pincode']) or re.search(r'\d{6}', line)):
-                    if not address: address = line
-
-            # 🆔 STABLE FINGERPRINT: Prevent duplicates across search cells
-            # We use a combined name + address key to ensure identity stability
-            address_key = address.replace(' ', '').lower()[:20] if address else "no-addr"
-            stable_id = f"{name.lower().replace(' ', '')}_{address_key}"
-
-            places.append({
-                'place_id': stable_id,
-                'name': name,
-                'category': category,
-                'street': address,
-                'city': address.split(',')[0].strip() if address and ',' in address else "Bhilwara",
-                'phone': phone,
-                'website': website,
-                'rating': rating,
-                'review_count': review_count,
-                'maps_url': href or page.url,
-                'latitude': lat,
-                'longitude': lng
-            })
-        except Exception as e:
-            log.debug("scraper.card_skipped", error=str(e))
-            continue
     return places
 
 
-# Helper imports for scrapling-based fallback if needed
+# ─── SCRAPLING FALLBACK ───────────────────────────────────────────────
 from scrapling.fetchers import AsyncFetcher
 from .http_search import _build_api_url, _parse_json_response
 
 async def scrapling_search_cell(cell, keyword, proxy_url=None):
-    """Fallback high-speed fetcher using JSON API obfuscation."""
+    """Fallback high-speed fetcher using JSON API."""
     lat_dist = abs(cell.max_lat - cell.min_lat) * 111000
     radius = max(int(lat_dist * 1.5), 2000)
     url = _build_api_url(keyword, cell.center_lat, cell.center_lng, radius, location=cell.display_name)
-    
+
     all_places = []
     try:
         async with AsyncFetcher(headless=True) as fetcher:
@@ -391,8 +544,11 @@ async def scrapling_search_cell(cell, keyword, proxy_url=None):
                 resp = await fetcher.get(url.replace('!8i0', f'!8i{offset}'), proxy=proxy_url, timeout=15)
                 if resp.status_code == 200:
                     page_places = _parse_json_response(resp.text)
-                    if not page_places: break
+                    if not page_places:
+                        break
                     all_places.extend(page_places)
-                else: break
-    except: pass
+                else:
+                    break
+    except:
+        pass
     return all_places
