@@ -58,15 +58,25 @@ async def verify():
 
     # 4. Analyze Results
     await kj.arefresh_from_db()
-    places_count = await Place.objects.filter(keyword_job=kj).all().acount()
+    all_places = await Place.objects.filter(keyword_job=kj).all()
+    places_count = await all_places.acount()
+    with_phone = await Place.objects.filter(keyword_job=kj).exclude(phone='').acount()
+    with_web = await Place.objects.filter(keyword_job=kj).exclude(website='').acount()
     
     print(f"\n✅ Search Finished! Status: {kj.status}")
     print(f"   Total leads captured: {places_count}")
+    print(f"   Leads with Phone: {with_phone}")
+    print(f"   Leads with Website: {with_web}")
     sys.stdout.flush()
     
     if places_count > 0:
-        print("\n--- 📍 SAMPLE DATA (Last 3 leads) ---")
-        async for p in Place.objects.filter(keyword_job=kj).order_by('-id')[:3]:
+        print("\n--- 📍 SAMPLE DATA (Leads with details) ---")
+        # Try to find leads that actually have data to show off the precision logic
+        sample_qs = Place.objects.filter(keyword_job=kj).exclude(phone='').order_by('-id')[:3]
+        if not await sample_qs.aexists():
+            sample_qs = Place.objects.filter(keyword_job=kj).order_by('-id')[:3]
+            
+        async for p in sample_qs:
             print(f"🏢 {p.name}")
             print(f"   📞 Phone: {p.phone or 'N/A'}")
             print(f"   🌐 Web: {p.website or 'N/A'}")
