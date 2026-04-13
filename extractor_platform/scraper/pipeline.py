@@ -89,7 +89,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
         kj.status = 'fetching_boundary'
         await kj.asave()
 
-        boundary = get_city_boundary(location)
+        boundary = await get_city_boundary(location)
         if not boundary:
             kj.status = 'failed'
             kj.status_message = f"Could not find coordinates for {location}"
