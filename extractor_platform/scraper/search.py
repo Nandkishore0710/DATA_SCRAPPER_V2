@@ -193,10 +193,17 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
         # Check for list or single result
         feed_found = False
         try:
-            await page.wait_for_selector('div[role="feed"], h1.DUwDvf', timeout=12000)
+            # 🕰️ INCREASE WAIT: Google Maps can be slow to populate the feed after the shell loads
+            await page.wait_for_selector('div[role="feed"], h1.DUwDvf, a.hfpxzc', timeout=25000)
             feed_found = True
-        except: pass
-            
+        except: 
+            # 📸 DIAGNOSTIC: Capture what the scraper sees if it fails
+            shot_path = f"scratch/debug_{int(asyncio.get_event_loop().time())}.png"
+            try:
+                await page.screenshot(path=shot_path)
+                log.info("scraper.debug_screenshot_saved", path=shot_path)
+            except: pass
+
         if not feed_found:
             log.warning("scraper.no_results_feed", query=query, url=page.url)
             return []
