@@ -155,7 +155,18 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     places = []
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=60000)
+        # Phase 1: Navigation with Retry
+        for attempt in range(2):
+            try:
+                # 'commit' is much faster than 'domcontentloaded' for slow servers
+                await page.goto(url, wait_until='commit', timeout=45000)
+                # Now manually wait for the content to start appearing
+                await page.wait_for_selector('div[role="feed"], h1.DUwDvf, [role="main"]', timeout=30000)
+                break
+            except Exception as e:
+                if attempt == 1: raise e
+                log.info("scraper.navigation_retry", attempt=attempt+1)
+                await asyncio.sleep(2)
         
         # 🤖 ROBOT DETECTION (Explicit check for CAPTCHAs)
         content = await page.content()
