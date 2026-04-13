@@ -1851,8 +1851,14 @@ function renderTable() {
             let val = place[f] || '-';
 
             if (f === 'category' || f === 'categories') {
-                const items = (val && val !== '-') ? (val.includes(',') ? val.split(',').length : 1) : 0;
-                val = `<span class="item-badge">${items} item${items !== 1 ? 's' : ''}</span>`;
+                const items = (val && val !== '-') ? (val.includes(',') ? val.split(',') : [val]) : [];
+                if (items.length === 1) {
+                    val = `<span class="item-badge" style="background:rgba(249,115,22,0.1); color:var(--accent); font-weight:700;">${items[0]}</span>`;
+                } else if (items.length > 1) {
+                    val = `<span class="item-badge">${items.length} items</span>`;
+                } else {
+                    val = `<span class="item-badge" style="opacity:0.5;">-</span>`;
+                }
             } else if (f === 'website' || f === 'maps_url' || f === 'url') {
                 if (val !== '-') {
                     val = `<a href="${val}" target="_blank" style="color:var(--accent); text-decoration:none; font-size:0.8rem; opacity:0.8; overflow:hidden; text-overflow:ellipsis; display:block; max-width:220px;">${val}</a>`;

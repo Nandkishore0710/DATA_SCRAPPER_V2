@@ -101,12 +101,16 @@ def extract_city_from_address(address: str, fallback_city: str = "") -> str:
     if not address:
         return fallback_city
     
-    parts = [p.strip() for p in address.split(',')]
+    # Clean noise first
+    clean_addr = clean_address(address)
+    parts = [p.strip() for p in clean_addr.split(',')]
+    
     # Walk backwards through parts to find a city-like name
     for part in reversed(parts):
         part = clean_text(part)
-        # Skip empty, zip codes, state codes, country names
-        if not part:
+        
+        # Skip empty, zip codes, Plus Codes, and meta-noise
+        if not part or is_plus_code(part):
             continue
         if re.match(r'^\d{5,6}$', part):  # ZIP/PIN code
             continue
@@ -114,7 +118,11 @@ def extract_city_from_address(address: str, fallback_city: str = "") -> str:
             continue
         if len(part) < 3:
             continue
-        # This is likely the city
+            
+        # If the part starts with a category (like "Gym · "), it's a dirty first part, skip it
+        if CATEGORY_PREFIXES.match(part):
+            continue
+            
         return part
     
     return fallback_city
@@ -195,37 +203,40 @@ class GoogleDetailsExtractor:
             # 6. RATING
             rating = ""
             try:
-                # The rating span with aria-label "X.X stars"
-                rating_el = page.locator('div.F7nice span[aria-hidden="true"]').first
+                # Primary: data-item-id based (usually stable)
+                rating_el = page.locator('span[data-item-id="address"] + span, button[aria-label*="stars"]').first
                 if await rating_el.count() > 0:
-                    rating = (await rating_el.inner_text(timeout=500)).strip()
+                    raw = await rating_el.get_attribute('aria-label') or ""
+                    r_match = re.search(r'([\d.]+)', raw)
+                    if r_match:
+                        rating = r_match.group(1)
+                
                 if not rating:
-                    rating_el2 = page.locator('span[aria-label*="stars"]').first
-                    if await rating_el2.count() > 0:
-                        raw = await rating_el2.get_attribute('aria-label') or ""
-                        r_match = re.search(r'([\d.]+)', raw)
-                        if r_match:
-                            rating = r_match.group(1)
+                    # Secondary: search for the hidden rating text
+                    rating_span = page.locator('span[aria-hidden="true"]:has-text(".")').first
+                    if await rating_span.count() > 0:
+                        rating = (await rating_span.inner_text()).strip()
             except:
                 pass
 
             # 7. REVIEW COUNT
             review_count = ""
             try:
-                # Try the review count inside parentheses next to rating
-                rev_el = page.locator('div.F7nice span[aria-label*="reviews"]').first
+                # The count is usually in a span with aria-label like "(123)"
+                rev_el = page.locator('button[jsaction*="reviews"] span[aria-label*="reviews"]').first
                 if await rev_el.count() > 0:
-                    rev_text = (await rev_el.get_attribute('aria-label') or "")
-                    rev_match = re.search(r'([\d,]+)', rev_text)
-                    if rev_match:
-                        review_count = rev_match.group(1).replace(',', '')
+                    raw = await rev_el.get_attribute('aria-label') or ""
+                    r_match = re.search(r'([\d,]+)', raw)
+                    if r_match:
+                        review_count = r_match.group(1).replace(',', '')
                 if not review_count:
-                    rev_btn = page.locator('button[jsaction*="reviewChart"] span, span[aria-label*="reviews"]').first
-                    if await rev_btn.count() > 0:
-                        rev_text = await rev_btn.inner_text(timeout=500)
-                        rev_match = re.search(r'([\d,]+)', rev_text)
-                        if rev_match:
-                            review_count = rev_match.group(1).replace(',', '')
+                    # Fallback to general span search
+                    rev_span = page.locator('span[aria-label*="reviews"]').first
+                    if await rev_span.count() > 0:
+                        raw = await rev_span.get_attribute('aria-label') or ""
+                        r_match = re.search(r'([\d,]+)', raw)
+                        if r_match:
+                            review_count = r_match.group(1).replace(',', '')
             except:
                 pass
 
@@ -309,14 +320,15 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
     # Block heavy resources but KEEP CSS for accurate rendering
     async def block_waste(route):
-        bad_types = ['image', 'media', 'manifest', 'texttrack', 'object', 'imageset']
+        bad_types = ['image', 'media', 'manifest', 'texttrack', 'object', 'imageset', 'font']
         url_lower = route.request.url.lower()
         if route.request.resource_type in bad_types:
             await route.abort()
         elif any(x in url_lower for x in [
             'google-analytics', 'doubleclick', 'facebook', 'analytics',
             'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google',
-            'play.google.com', 'maps.googleapis.com/maps/vt',  # map tile images
+            'play.google.com', 'maps.googleapis.com/maps/vt', 'gstatic.com',
+            'fonts.googleapis.com', 'fonts.gstatic.com'
         ]):
             await route.abort()
         else:

@@ -20,7 +20,7 @@ log = structlog.get_logger()
 
 # Global config
 JOB_TIMEOUT_SECONDS = 7200
-CONCURRENCY = 4  # 🚀 Optimized for 4vCPU VPS
+CONCURRENCY = 2  # Aggressively tuned for 4vCPU stability with detail-extraction
 
 
 def normalize_name(name: str) -> str:
