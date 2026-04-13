@@ -101,10 +101,26 @@ async def run_keyword_pipeline(keyword_job_id: int):
                 cancelled = True
                 return 0
 
+            # Identify the core target city from the job location
+            target_city = location.split(',')[0].strip().lower()
+            
             new_objs = []
             for p in places:
                 if cancelled:
                     break
+
+                # 🛡️ LOCATION GUARD: Verify lead is actually in the target area
+                p_city = p.get('city', '').lower()
+                p_street = p.get('street', '').lower()
+                p_address = p.get('full_address', '').lower()
+                
+                # If the lead is in a different major city (district level), skip it
+                # We check if the target_city name appears ANYWHERE in the location/city
+                is_relevant = (target_city in p_city) or (target_city in p_street) or (target_city in p_address)
+                
+                if not is_relevant:
+                    log.debug("pipeline.location_skip", name=p.get('name'), p_city=p_city, target=target_city)
+                    continue
 
                 # 🛡️ DUAL DEDUP: Check both place_id AND normalized name
                 pid = p.get('place_id', '')
