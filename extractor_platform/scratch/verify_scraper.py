@@ -58,8 +58,7 @@ async def verify():
 
     # 4. Analyze Results
     await kj.arefresh_from_db()
-    all_places = await Place.objects.filter(keyword_job=kj).all()
-    places_count = await all_places.acount()
+    places_count = await Place.objects.filter(keyword_job=kj).acount()
     with_phone = await Place.objects.filter(keyword_job=kj).exclude(phone='').acount()
     with_web = await Place.objects.filter(keyword_job=kj).exclude(website='').acount()
     
