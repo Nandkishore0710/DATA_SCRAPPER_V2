@@ -22,8 +22,8 @@ async def verify():
     # 1. Get or create a test user
     user, _ = await User.objects.aget_or_create(username='testadmin', email='test@example.com')
     
-    # 2. Setup Test Job (Coffee Shops in Mumbai)
-    location = "Mumbai"
+    # 2. Setup Test Job (Mumbai, India)
+    location = "Mumbai, India"
     keyword = "Coffee Shops"
     
     bj = await BulkJob.objects.acreate(
