@@ -219,6 +219,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
                         # We pass location name so search.py can use it for better city fallbacks
                         places = await search_grid_cell(
                             browser, cell, kj.keyword, 
+                            location_name=location,
                             proxy_url=proxy_url, 
                             skip_cache=True
                         )

@@ -317,9 +317,9 @@ async def extract_single_page(page, cell):
 
 
 # ─── MAIN SEARCH FUNCTION ─────────────────────────────────────────────
-async def search_grid_cell(browser, cell, keyword, proxy_url=None, skip_cache=True):
+async def search_grid_cell(browser, cell, keyword, location_name=None, proxy_url=None, skip_cache=True):
     """
-    VERSION 2.1 — STABLE SELECTORS & CACHE-BUSTER
+    VERSION 2.1 — STABLE SELECTORS & CACHE-BUSTER & LOCATION-HARDENING
     
     Strategy:
     1. Navigate to search results for this grid cell
@@ -330,7 +330,9 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None, skip_cache=Tr
     
     This is slower per cell but gets 100% accurate data.
     """
-    query = keyword
+    # If location_name is provided (e.g. 'Bhilwara'), we include it in the query
+    # to force Google's ranking to stay within the city even for coordinate searches.
+    query = f"{keyword} {location_name}" if location_name else keyword
     zoom = getattr(cell, 'zoom', 14)
     url = f"https://www.google.com/maps/search/{quote(query)}/@{cell.center_lat},{cell.center_lng},{zoom}z"
 
@@ -365,7 +367,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None, skip_cache=Tr
     from .cache import get_cached_results
     # ── Check Cache ──
     if not skip_cache:
-        cached = await get_cached_results(keyword, getattr(cell, 'location_name', 'Unknown'), cell.index)
+        cached = await get_cached_results(keyword, location_name or 'Unknown', cell.index)
         if cached:
             return cached
 
