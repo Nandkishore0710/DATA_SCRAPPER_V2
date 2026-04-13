@@ -115,8 +115,11 @@ async def run_keyword_pipeline(keyword_job_id: int):
 
         log.info("pipeline.processing_active", search_type=bj.search_type, grid_size=grid_size, total_cells=len(cells))
         
-        # Decide fetcher based on search type
-        use_playwright = (bj.search_type == 'city')
+        # Decide fetcher based on search type (Always use optimized Playwright for robustness)
+        use_playwright = True 
+        
+        # We now use the BrowserManager singleton for high-concurrency stability
+        from .manager import browser_manager
         
         semaphore = asyncio.BoundedSemaphore(CONCURRENCY)
         processed_cells = 0
@@ -176,21 +179,10 @@ async def run_keyword_pipeline(keyword_job_id: int):
                     await kj.asave()
 
         if use_playwright:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=[
-                        '--disable-gpu',
-                        '--disable-dev-shm-usage',
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--js-flags="--max-old-space-size=512"'
-                    ]
-                )
-                tasks = [ _process_cell_logic(i, cell, browser=browser) for i, cell in enumerate(cells) ]
-                # 🛑 RETURN_EXCEPTIONS=True: Key for resiliency
-                await asyncio.gather(*tasks, return_exceptions=True)
-                await browser.close()
+            browser = await browser_manager.get_browser()
+            tasks = [ _process_cell_logic(i, cell, browser=browser) for i, cell in enumerate(cells) ]
+            # 🛑 RETURN_EXCEPTIONS=True: Key for resiliency
+            await asyncio.gather(*tasks, return_exceptions=True)
         else:
             tasks = [ _process_cell_logic(i, cell) for i, cell in enumerate(cells) ]
             await asyncio.gather(*tasks, return_exceptions=True)

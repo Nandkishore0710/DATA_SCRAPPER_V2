@@ -142,14 +142,15 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
         bad_types = ['image', 'stylesheet', 'font', 'media', 'other', 'manifest', 'texttrack', 'object', 'imageset']
         if route.request.resource_type in bad_types:
             await route.abort()
-        elif any(x in route.request.url.lower() for x in ['google-analytics', 'doubleclick', 'facebook', 'analytics', 'beacon', 'telemetry', 'ad-delivery']):
+        elif any(x in route.request.url.lower() for x in ['google-analytics', 'doubleclick', 'facebook', 'analytics', 'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google']):
             await route.abort()
         else:
             await route.continue_()
 
     await context.route("**/*", block_waste)
     
-    page = await context.new_page()
+    from .manager import browser_manager
+    page = await browser_manager.acquire_page(context)
     await stealth_async(page) # Apply fingerprint masks
     places = []
 
@@ -168,115 +169,164 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
                 btn = page.locator(s).first
                 if await btn.count() > 0:
                     await btn.click()
-                    # WAIT LONGER for the overlay to fully clear (Crucial for Cloud VPS)
-                    await asyncio.sleep(1.5) 
+                    await asyncio.sleep(1) 
                     break
         except: pass
 
-        # 🕵️‍♂️ CHECK FOR "NO RESULTS" TEXT (Avoid false blockage alarms)
+        # 🕵️‍♂️ CHECK FOR "NO RESULTS" TEXT
         no_res_txt = await page.content()
         if "couldn't find" in no_res_txt.lower() or "no results" in no_res_txt.lower():
             log.info("scraper.zero_results", query=query, cell=cell.id)
             return []
 
-        # Check for list or single result (Robust Multi-Selector Feed Detection)
-        feed_selectors = [
-            'div[role="feed"]', 
-            'div[aria-label*="Results for"]', 
-            '.m67q60667232', 
-            '.m67q60B67232', 
-            'a.hfpxzc' # If the lead cards are visible, the feed is loaded
-        ]
+        # Check for list or single result
         feed_found = False
-        for fs in feed_selectors:
-            try:
-                await page.wait_for_selector(fs, timeout=8000)
-                feed_found = True
-                break
-            except: continue
+        try:
+            await page.wait_for_selector('div[role="feed"], h1.DUwDvf', timeout=12000)
+            feed_found = True
+        except: pass
             
         if not feed_found:
-            # Maybe it redirected to a single place page
-            if await page.locator('h1.DUwDvf').count() > 0:
-                one = await extract_single_page(page, cell)
-                if one: return [one]
             log.warning("scraper.no_results_feed", query=query, url=page.url)
             return []
 
+        if await page.locator('h1.DUwDvf').count() > 0:
+            one = await extract_single_page(page, cell)
+            if one: return [one]
+
         # Fast Scroll
         last_count = 0
-        for _ in range(30):
+        for _ in range(25):
             await page.evaluate("const f=document.querySelector('div[role=\"feed\"]'); if(f) f.scrollTop=f.scrollHeight;")
-            await asyncio.sleep(0.7)
+            await asyncio.sleep(0.5)
             count = await page.locator('div[role="feed"] > div > div[jsaction]').count()
             if count == last_count: break
             last_count = count
 
         places = await extract_from_cards(page, cell)
 
+        # 🎯 PRECISION UPGRADE: Deep Scan Fallback
+        # If any place is missing critical data, click and extract specifically from the side panel
+        # Limit deep scans to 20 per cell to maintain performance/avoid detection
+        incomplete_places = [p for p in places if not p.get('phone') or not p.get('website')]
+        
+        if incomplete_places:
+            log.info("scraper.deep_scan_start", count=len(incomplete_places))
+            extractor = GoogleDetailsExtractor()
+            cards = await page.locator('a.hfpxzc, [role="article"]').all()
+            
+            for i, p in enumerate(places):
+                # Skip if already complete
+                if p.get('phone') and p.get('website'):
+                    continue
+                
+                # Check for stopping condition/exhaustion
+                if i >= len(cards): break
+                
+                try:
+                    card = cards[i]
+                    # Ensure we are clicking the right card by checking the name
+                    card_label = await card.get_attribute('aria-label') or ""
+                    if p['name'] not in card_label:
+                        continue
+                    
+                    await card.click()
+                    # Wait for side panel to update (Name should match)
+                    try:
+                        await page.wait_for_selector(f'h1:has-text("{p["name"]}")', timeout=5000)
+                    except:
+                        # Fallback: maybe just wait a second
+                        await asyncio.sleep(1.2)
+                    
+                    details = await extractor.extract(page)
+                    if details:
+                        # Merge details (Detail page is always more accurate)
+                        p.update({
+                            'street': details.get('street') or p.get('street'),
+                            'phone': details.get('phone') or p.get('phone'),
+                            'website': details.get('website') or p.get('website'),
+                            'rating': details.get('rating') or p.get('rating'),
+                            'review_count': details.get('review_count') or p.get('review_count'),
+                            'category': details.get('category') or p.get('category'),
+                        })
+                        log.debug("scraper.deep_scan_success", name=p['name'])
+                    
+                    # Small human-like variance
+                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                except Exception as e:
+                    log.debug("scraper.deep_scan_failed", name=p['name'], error=str(e))
+
     finally:
+        await page.close()
+        browser_manager.release_page()
         await context.close()
     return places
 
 async def extract_from_cards(page, cell) -> list:
-    """HYPER-FAST ARIA SCANNER: Extracts data instantly from the list without clicking."""
+    """HYPER-FAST ARIA SCANNER: Extracts data instantly from the list with improved regex heuristics."""
     places = []
-    # Identify result cards (links with specific class 'hfpxzc' or generic article role)
     cards = await page.locator('a.hfpxzc, [role="article"]').all()
 
     for i, card in enumerate(cards):
         try:
-            # 1. Get ARIA metadata (High efficiency)
             label = await card.get_attribute('aria-label') or ""
             text = await card.inner_text() or ""
             
-            # 🕵️‍♂️ AD BLOCKADE
             if any(ad_marker in label.lower() or ad_marker in text.lower() for ad_marker in ['ad ', 'sponsored']):
                 continue
 
-            # 2. NAME EXTRACTION (From card text)
+            # 2. NAME EXTRACTION
             name = label.split(' · ')[0] if ' · ' in label else text.split('\n')[0]
             if not name: continue
 
             # 3. METADATA PARSING (Rating, Count, Category)
-            # Google often formats aria-label: "Name · Rating (Reviews) · Category"
             rating = ""
             review_count = ""
             category = ""
             
+            # Use Regex on Label which is more structured
+            # Format: "Name · 4.5 stars (1,234) · Category"
             if ' · ' in label:
-                parts = [p.strip() for p in label.split(' · ')]
-                if len(parts) >= 2:
-                    # Look for rating e.g. "4.5 stars"
-                    r_match = re.search(r'(\d[\d\.]*)\s+stars', label)
-                    if r_match: rating = r_match.group(1)
-                    
-                    # Look for reviews e.g. "(1,234)"
-                    rev_match = re.search(r'\((\d[\d,]*)\)', label)
-                    if rev_match: review_count = rev_match.group(1).replace(',', '')
-                    
-                    # Category is often the last part or middle
-                    category = parts[1] if len(parts) > 1 else ""
+                parts = label.split(' · ')
+                for p in parts:
+                    # Check for rating
+                    if 'stars' in p.lower():
+                        r_match = re.search(r'(\d[\d\.]*)', p)
+                        if r_match: rating = r_match.group(1)
+                        # Check for reviews inside parentheses after the rating
+                        rev_match = re.search(r'\((\d[\d,]*)\)', p)
+                        if rev_match: review_count = rev_match.group(1).replace(',', '')
+                    elif p != name and not any(x in p.lower() for x in ['stars', 'reviews']):
+                        # If it's not the name and not rating, it's likely the category
+                        if not category: category = p.strip()
 
-            # 4. ADDRESS / PHONE / WEBSITE (Scraped from card text lines)
-            lines = text.split('\n')
+            # 4. ADDRESS / PHONE / WEBSITE
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
             address = ""
             phone = ""
             website = ""
             
-            # Heuristic: Addresses or phone numbers are usually in the 3rd or 4th line
-            for line in lines[1:]:
-                if re.search(r'\d{5}', line): address = line # Zip code hint
-                if re.search(r'(\d{3}-\d{3}-\d{4}|\+\d{2})', line): phone = line # Phone pattern
-                if '.' in line and '/' not in line and ' ' not in line: website = line # Simple URL hint
+            for line in lines:
+                # Website Heuristic: Must contain '.' but NOT be a number (like rating 4.5)
+                # Stricter URL regex
+                if re.search(r'^[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}(/.*)?$', line) or ('.' in line and ('/' in line or 'www' in line.lower())):
+                    # Ensure it's not a rating (e.g. "4.5") or review count
+                    if not re.search(r'^\d+\.?\d*$', line):
+                        website = line
+                # Phone Heuristic (Standard formats)
+                elif re.search(r'(\d{3,}-\d{3,}-\d{4}|\+\d{1,3}|^\d{10,12}$)', line.replace(' ', '')):
+                    phone = line
+                # Address Heuristic: Usually longer lines or lines with specific parts
+                elif len(line) > 10 and (any(x in line.lower() for x in ['rd', 'st', 'ave', 'lane', 'mumbai', 'india', 'pincode']) or re.search(r'\d{6}', line)):
+                    if not address: address = line
 
             places.append({
                 'place_id': f"{name}_{cell.index}_{i}",
                 'name': name,
                 'category': category,
-                'street': address or "See Dashboard",
+                'street': address,
                 'city': address.split(',')[0].strip() if address and ',' in address else "Bhilwara",
-                'phone': phone or "Check Panel",
+                'phone': phone,
                 'website': website,
                 'rating': rating,
                 'review_count': review_count,
