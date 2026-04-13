@@ -63,13 +63,13 @@ async def run_keyword_pipeline(keyword_job_id: int):
                 pid = p.get('place_id')
                 if not pid or pid in seen: continue
                 
-                # 🛡️ STRICT ADDRESS VERIFICATION: Block Noida/Other Intrusions
+                # 🛡️ SMART ADDRESS VERIFICATION: Avoid discarding local leads
                 addr = (p.get('street') or "").lower()
                 city_val = (p.get('city') or "").lower()
-                target = location.lower()
                 
-                # Check for target city in lead data
-                if target not in addr and target not in city_val:
+                # Only discard if it's explicitly in another DIFFERENT major city
+                # Since we search by coordinates, we can be more trusting of local results.
+                if any(other in addr or other in city_val for other in ['noida', 'delhi', 'bangalore', 'pune']):
                     log.info("pipeline.out_of_town_discarded", name=p.get('name'), address=p.get('street'))
                     continue
 
