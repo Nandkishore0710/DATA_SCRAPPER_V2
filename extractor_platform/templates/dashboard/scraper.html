@@ -274,8 +274,7 @@
             <div data-pkg-name style="font-size: 1rem; font-weight: 800; margin-bottom: 2px;">{{ pkg.name }}</div>
             <div data-pkg-label
                 style="font-size: 0.72rem; font-weight: 500; color: {% if pkg.is_featured %}#94a3b8{% else %}#64748b{% endif %}; margin-bottom: 20px;">
-                {% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{%
-                endif %}
+                {% if forloop.counter == 1 %}Starter Kit{% elif pkg.is_featured %}Team Access{% else %}Enterprise{% endif %}
             </div>
 
             <div style="margin-bottom: 20px; display: flex; align-items: baseline; gap: 6px;">
