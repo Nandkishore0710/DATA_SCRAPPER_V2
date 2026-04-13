@@ -141,7 +141,17 @@ class GoogleDetailsExtractor:
             name = await self._find_text(page, [
                 'h1.DUwDvf', 'h1.fontHeadlineLarge', 'h1'
             ])
-            if not name:
+            
+            # GUARD: If no name or name is generic 'Results', it's not a business page
+            if not name or name.lower() in ('results', 'search results', 'maps', 'google maps'):
+                return None
+
+            # GUARD: Real businesses ALWAYS have an address button in the side panel
+            try:
+                addr_check = page.locator('button[data-item-id="address"]').first
+                if await addr_check.count() == 0:
+                    return None
+            except:
                 return None
 
             # 2. CATEGORY
@@ -229,8 +239,8 @@ class GoogleDetailsExtractor:
             # 7. REVIEW COUNT
             review_count = ""
             try:
-                # The count is often in button.HHV0fe
-                rev_el = page.locator('button.HHV0fe, button[jsaction*="reviews"] span[aria-label*="reviews"]').first
+                # The count is often in button[aria-label*="reviews"] or button.HHV0fe
+                rev_el = page.locator('button[aria-label*="reviews"], button.HHV0fe, button[jsaction*="reviews"] span[aria-label*="reviews"]').first
                 if await rev_el.count() > 0:
                     raw = await rev_el.get_attribute('aria-label') or await rev_el.inner_text() or ""
                     r_match = re.search(r'([\d,]+)', raw)
@@ -335,8 +345,7 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None, skip_cache=Tr
         elif any(x in url_lower for x in [
             'google-analytics', 'doubleclick', 'facebook', 'analytics',
             'beacon', 'telemetry', 'ad-delivery', 'youtube.com', 'accounts.google',
-            'play.google.com', 'maps.googleapis.com/maps/vt', 'gstatic.com',
-            'fonts.googleapis.com', 'fonts.gstatic.com'
+            'play.google.com', 'maps.googleapis.com/maps/vt'
         ]):
             await route.abort()
         else:
