@@ -348,10 +348,6 @@ async function renderHistory() {
                 clearInterval(liveTimerIntervals[histTimerId]);
                 delete liveTimerIntervals[histTimerId];
             }
-            const histStaticDuration = jobDurationText(job);
-            const histDurationHtml = histStaticDuration !== null
-                ? `<span style="font-size:0.8rem; font-weight:700; color:${job.status === 'completed' ? 'var(--success)' : 'var(--text-muted)'}">${histStaticDuration}</span>`
-                : `<span id="${histTimerId}" style="font-size:0.8rem; font-weight:700; color:var(--accent);">⏱ 0s</span>`;
 
             const tr = document.createElement('tr');
             tr.className = 'history-row-item';
@@ -360,7 +356,6 @@ async function renderHistory() {
             tr.onmouseout = () => { tr.style.background = 'transparent'; };
             tr.onclick = (e) => { if (!e.target.closest('button')) viewHistoryItem(job.bulk_job_id); };
 
-            const histTimerId = `hist-timer-${job.bulk_job_id}`;
             const histStaticDuration = jobDurationText(job);
             const durationDisplay = histStaticDuration !== null
                 ? histStaticDuration.replace('✅ ', '').replace('🛑 ', '')
