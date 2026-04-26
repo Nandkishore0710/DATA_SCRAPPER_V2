@@ -106,6 +106,7 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 # Admin Hub Settings
 ADMIN_HUB_EMAILS = config('ADMIN_HUB_EMAILS', default='admin@datamine.com,sonikhush004@gmail.com').split(',')
 ADMIN_HUB_PASSWORD = config('ADMIN_HUB_PASSWORD', default='OMISCIENT_ROOT_HUB')
+LOGIN_URL = '/omega-hq/gateway/'
 
 # SSL Security Settings
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)

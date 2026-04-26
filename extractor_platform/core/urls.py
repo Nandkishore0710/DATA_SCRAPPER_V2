@@ -30,6 +30,7 @@ urlpatterns = [
     path('omega-hq/payments/', jobs.admin_views.payment_management, name='payment_management'),
     path('omega-hq/payments/settings/', jobs.admin_views.payment_settings, name='payment_settings'),
 
+    path('admin/login/', jobs.admin_views.admin_hub_login),
     path('admin/', admin.site.urls),
     path('api/token/', TokenObtainPairView.as_view()),
     path('api/token/refresh/', TokenRefreshView.as_view()),

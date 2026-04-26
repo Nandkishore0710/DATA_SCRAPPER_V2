@@ -35,7 +35,11 @@ def admin_hub_required(view_func):
     return _wrapped_view
 
 def admin_hub_login(request):
-    """Single-stage login with Master Password bypass."""
+    """Single-stage login with Master Password bypass and auto-entry."""
+    # AUTO-ENTRY: If already a logged in superuser, go straight to dashboard
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('admin_dashboard')
+        
     error = None
     if request.method == 'POST':
         pwd_input = request.POST.get('password', '').strip()
