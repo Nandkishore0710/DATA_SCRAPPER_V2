@@ -69,7 +69,8 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard.html', {
         'metrics': stats,
         'pressure': {'values': json.dumps([p.active_jobs for p in reversed(pressure)]), 'labels': json.dumps([p.timestamp.strftime('%H:%M') for p in reversed(pressure)])},
-        'now': timezone.now()
+        'now': timezone.now(),
+        'admin': request.user
     })
 
 @admin_hub_required
@@ -134,7 +135,6 @@ def create_user_admin(request):
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'POST required'}, status=400)
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def toggle_user_status(request, user_id):
@@ -142,7 +142,6 @@ def toggle_user_status(request, user_id):
     if not user.is_superuser: user.is_active = not user.is_active; user.save()
     return JsonResponse({'success': True, 'is_active': user.is_active})
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def reset_password(request, user_id):
@@ -154,7 +153,6 @@ def reset_password(request, user_id):
         return JsonResponse({'success': True, 'msg': 'Password updated successfully.'})
     return JsonResponse({'error': 'No PW provided'}, status=400)
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def update_credits(request, user_id):
@@ -166,7 +164,6 @@ def update_credits(request, user_id):
         return JsonResponse({'success': True, 'msg': f'Credits updated to {credits}.'})
     return JsonResponse({'error': 'No credits'}, status=400)
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def update_user_details(request, user_id):
@@ -179,14 +176,12 @@ def update_user_details(request, user_id):
     p.phone = data.get('phone', p.phone); p.save()
     return JsonResponse({'success': True, 'msg': 'User details updated.'})
 
-@staff_member_required
 @admin_hub_required
 def user_activity(request, user_id):
     u = get_object_or_404(User, id=user_id)
     jobs = BulkJob.objects.filter(user=u).order_by('-created_at')
     return render(request, 'admin/user_activity.html', {'target_user': u, 'jobs': jobs, 'profile': u.profile, 'packages': Package.objects.all()})
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def assign_package(request, user_id):
@@ -200,7 +195,6 @@ def assign_package(request, user_id):
     p.save()
     return JsonResponse({'success': True, 'msg': f'Package applied. Credits set to {p.searches_left}.'})
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def remove_subscription(request, user_id):
@@ -211,7 +205,6 @@ def remove_subscription(request, user_id):
     p.save()
     return JsonResponse({'success': True, 'msg': 'Subscription removed. Credits reset to 5.'})
 
-@staff_member_required
 @admin_hub_required
 @require_POST
 def delete_user(request, user_id):
@@ -247,18 +240,15 @@ def package_management(request):
         return redirect('package_management')
     return render(request, 'admin/package_management.html', {'packages': Package.objects.all()})
 
-@staff_member_required
 @admin_hub_required
 def view_keyword_results(request, keyword_job_id):
     kj = get_object_or_404(KeywordJob, id=keyword_job_id)
     return render(request, 'admin/keyword_results.html', {'kj': kj, 'places': kj.places.all()})
 
-@staff_member_required
 @admin_hub_required
 def payment_management(request):
     return render(request, 'admin/payment_management.html', {'transactions': Transaction.objects.all().order_by('-created_at')[:50]})
 
-@staff_member_required
 @admin_hub_required
 def payment_settings(request):
     obj, _ = PaymentGatewaySettings.objects.get_or_create(is_active=True)
