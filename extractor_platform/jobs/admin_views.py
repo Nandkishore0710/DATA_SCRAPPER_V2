@@ -25,67 +25,31 @@ from decouple import config
 # --- 1. Security Infrastructure ---
 
 def admin_hub_required(view_func):
-    """Decorator to ensure OTP verification has occurred."""
+    """Decorator to ensure OTP verification or staff login has occurred."""
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        if not request.session.get('admin_hub_verified'):
-            return redirect('admin_hub_login')
+        if not request.user.is_authenticated or not request.user.is_staff:
+            if not request.session.get('admin_hub_verified'):
+                return redirect('admin_hub_login')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 def admin_hub_login(request):
-    """Multi-stage login with Emergency Terminal Fallback."""
+    """Single-stage login with Master Password bypass."""
     error = None
     if request.method == 'POST':
-        step = request.session.get('admin_login_step', 1)
-        if step == 1:
-            email = request.POST.get('email', '').strip().lower()
-            if email in [e.strip().lower() for e in settings.ADMIN_HUB_EMAILS]:
-                otp = random.randint(100000, 999999)
-                request.session['admin_otp'] = otp
-                request.session['admin_email'] = email
-                request.session['admin_login_step'] = 2
-                print(f"\n🚨 [ADMIN ACCESS] | EMAIL: {email} | TOKEN: {otp}\n")
-                def _send_async_otp():
-                    sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
-                    resend_key = config('RESEND_API_KEY', default='')
-                    
-                    try:
-                        db_settings = PaymentGatewaySettings.objects.filter(is_active=True).first()
-                        if db_settings and db_settings.smtp_user:
-                            conn = get_connection(host=db_settings.smtp_host, port=db_settings.smtp_port, username=db_settings.smtp_user, password=db_settings.smtp_password, use_tls=db_settings.smtp_use_tls)
-                            send_mail('Admin Hub Token', f'Token: {otp}', db_settings.smtp_user, [email], fail_silently=False, connection=conn)
-                            return
-                    except Exception as smtp_err:
-                        print(f"[ADMIN_SMTP_FAILURE]: {smtp_err}")
-
-                    # 🚀 API BYPASS Fallback (Unblockable Port 443)
-                    if resend_key:
-                        try:
-                            import requests
-                            resp = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}, json={"from": sender, "to": email, "subject": "Admin Hub Token", "html": f"Token: {otp}"}, timeout=10)
-                            if resp.status_code not in [200, 201, 202]:
-                                print(f"[ADMIN_API_DEBUG]: Status {resp.status_code} | Body: {resp.text}")
-                            else:
-                                print(f"🚀 [BYPASS_SUCCESS]: Email sent to {email}")
-                        except Exception as api_err:
-                            print(f"[ADMIN_API_FAILURE]: {api_err}")
-                
-                threading.Thread(target=_send_async_otp, daemon=True).start()
-                return render(request, 'admin/intel_login.html', {'step': 2, 'email': email})
-            else: error = "Unauthorized."
-        elif step == 2:
-            otp_input, pwd_input = request.POST.get('otp', '').strip(), request.POST.get('password', '').strip()
-            admin_email = request.session.get('admin_email', '')
-            if str(otp_input) == str(request.session.get('admin_otp')) and pwd_input == settings.ADMIN_HUB_PASSWORD:
-                target_user = User.objects.filter(email=admin_email, is_staff=True).first() or User.objects.filter(is_superuser=True).first()
-                if target_user: login(request, target_user)
-                request.session['admin_hub_verified'] = True
-                request.session.pop('admin_otp', None); request.session.pop('admin_login_step', None); request.session.pop('admin_email', None)
-                return redirect('admin_dashboard')
-            else: error = "Invalid credentials."
-    request.session['admin_login_step'] = 1
-    return render(request, 'admin/intel_login.html', {'step': 1, 'error': error})
+        pwd_input = request.POST.get('password', '').strip()
+        if pwd_input == settings.ADMIN_HUB_PASSWORD:
+            # Auto-login as superuser to bypass generic Django login
+            target_user = User.objects.filter(is_superuser=True).first()
+            if target_user:
+                login(request, target_user)
+            request.session['admin_hub_verified'] = True
+            return redirect('admin_dashboard')
+        else:
+            error = "Invalid Master Password."
+    
+    return render(request, 'admin/intel_login.html', {'step': 2, 'error': error})
 
 def admin_hub_logout(request):
     request.session.flush()

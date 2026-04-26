@@ -143,40 +143,19 @@
             <span>SECURE_SESSION_v4.2</span>
         </div>
 
-        {% if step == 1 %}
-            <div class="status-header">ADMIN_IDENTIFICATION</div>
-            <div class="status-sub">Please provide your authorized credentials</div>
+        <div class="status-header">VERIFICATION_STATION</div>
+        <div class="status-sub">Please provide your master clearance password</div>
 
-            <form method="POST">
-                {% csrf_token %}
-                <div class="input-group">
-                    <label class="input-label">ADMIN_EMAIL</label>
-                    <input type="email" name="email" class="clearance-input" placeholder="name@example.com" required autofocus 
-                           style="padding: 14px; font-size: 1rem;">
-                </div>
-                <button type="submit" class="btn-access">Dispatch Access Token</button>
-            </form>
-        {% else %}
-            <div class="status-header">VERIFICATION_STATION</div>
-            <div class="status-sub">Check your terminal for the dispatch code</div>
-
-            <form method="POST">
-                {% csrf_token %}
-                <div class="input-group">
-                    <label class="input-label">OTP_TOKEN</label>
-                    <input type="text" name="otp" class="clearance-input" placeholder="XXXXXX" maxlength="6" required autofocus 
-                           style="text-align: center; letter-spacing: 0.5em; font-size: 1.2rem; padding: 14px;">
-                </div>
-                
-                <div class="input-group">
-                    <label class="input-label">MASTER_PASSWORD</label>
-                    <input type="password" name="password" class="clearance-input" placeholder="••••••••" required
-                           style="padding: 14px; font-size: 1.2rem;">
-                </div>
-                
-                <button type="submit" class="btn-access">Verify & Unlock</button>
-            </form>
-        {% endif %}
+        <form method="POST">
+            {% csrf_token %}
+            <div class="input-group">
+                <label class="input-label">MASTER_PASSWORD</label>
+                <input type="password" name="password" class="clearance-input" placeholder="••••••••" required autofocus
+                       style="padding: 14px; font-size: 1.2rem;">
+            </div>
+            
+            <button type="submit" class="btn-access">Verify & Unlock</button>
+        </form>
 
         {% if error %}
             <div class="error-overlay">
