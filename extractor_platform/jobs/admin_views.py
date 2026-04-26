@@ -32,24 +32,24 @@ def admin_hub_required(view_func):
     return _wrapped_view
 
 def admin_hub_login(request):
-    """[TEMPORARY BYPASS] Auto-redirect to dashboard unless logging out."""
-    # If explicitly logging out, show the gateway page instead of auto-logging in
-    if 'logout' in request.GET:
-        return render(request, 'admin/intel_login.html', {'step': 2, 'error': 'You have been logged out.'})
-
-    # Auto-login as superuser if possible to ensure staff features work
-    if not request.user.is_authenticated:
+    """One-click bypass for authorized operatives."""
+    error = None
+    if request.method == 'POST':
+        # One-click bypass: Just log in as superuser
         target_user = User.objects.filter(is_superuser=True).first()
         if target_user:
             login(request, target_user)
-            
-    return redirect('admin_dashboard')
+        request.session['admin_hub_verified'] = True
+        return redirect('admin_dashboard')
+    
+    # Stay on the gateway page for GET requests (allows logout to persist)
+    return render(request, 'admin/intel_login.html', {'step': 2, 'error': error})
 
 def admin_hub_logout(request):
     from django.contrib.auth import logout
     logout(request)
     request.session.flush()
-    return redirect('/omega-hq/gateway/?logout=true')
+    return redirect('admin_hub_login')
 
 # --- 2. Dashboard & Monitoring ---
 

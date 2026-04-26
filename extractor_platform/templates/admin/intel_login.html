@@ -143,18 +143,12 @@
             <span>SECURE_SESSION_v4.2</span>
         </div>
 
-        <div class="status-header">VERIFICATION_STATION</div>
-        <div class="status-sub">Please provide your master clearance password</div>
+        <div class="status-header">SYSTEM_READY</div>
+        <div class="status-sub">Bypass mode active. Authentication not required.</div>
 
         <form method="POST">
             {% csrf_token %}
-            <div class="input-group">
-                <label class="input-label">MASTER_PASSWORD</label>
-                <input type="password" name="password" class="clearance-input" placeholder="••••••••" required autofocus
-                       style="padding: 14px; font-size: 1.2rem;">
-            </div>
-            
-            <button type="submit" class="btn-access">Verify & Unlock</button>
+            <button type="submit" class="btn-access" style="margin-top: 32px;">Enter Command Center</button>
         </form>
 
         {% if error %}
